@@ -1,114 +1,51 @@
-# GEA Survival Risk Stratifier
+# Project 6: GEA Survival Risk Stratifier
 
-**End-to-end survival analysis pipeline for gastroesophageal adenocarcinoma (GEA) chemotherapy response prediction using TCGA-STAD data.**
+**Research question:** Which combination of molecular features best predicts chemotherapy response and survival in gastroesophageal adenocarcinoma?
 
-This project answers a clinical question from wet-lab cancer research: **Which molecular features predict chemotherapy response and survival in GEA patients?** It combines multi-omic data (MSI status, tumor mutational burden, DNA damage repair gene mutations, immune subtype) with survival modeling to stratify patients by risk.
+This is the sixth project in a [computational biology portfolio](https://github.com/adamhoffman2155-hue/bioinformatics-portfolio) — and the capstone. It answers the clinical question that started everything: can we integrate molecular features into a survival risk model that could inform treatment decisions? It combines MSI status, tumor mutational burden, DDR gene mutations, and immune subtype into a Cox proportional hazards model with an interactive Streamlit risk calculator.
 
 ## Quick Start
 
 ```bash
-# 1. Install dependencies
 conda env create -f environment.yaml
 conda activate gea-survival
 
-# 2. Run the full pipeline
+# Run the full pipeline
 snakemake --cores 4
 
-# 3. Launch the interactive dashboard
+# Launch the interactive dashboard
 streamlit run dashboard/app.py
 ```
 
-## What This Demonstrates
+## What It Does
 
-This portfolio project showcases production-grade bioinformatics engineering across multiple domains:
+End-to-end survival analysis pipeline using TCGA-STAD data:
 
-**Workflow Orchestration**: Snakemake DAG with modular rules for download → preprocess → feature engineering → modeling → visualization. Each step is containerized and reproducible.
+1. **Data acquisition** — GDC REST API client with pagination and error handling
+2. **Preprocessing** — Data cleaning with explicit logging, DuckDB feature store
+3. **Feature engineering** — MSI status (binary), TMB (mutations/Mb), DDR burden (pathogenic mutations in BRCA1/2, ATM, ATR, PALB2, RAD51, MLH1, MSH2, MSH6, POLE), immune subtype
+4. **Survival modeling** — Cox PH and Kaplan-Meier analysis (lifelines)
+5. **Visualization** — KM curves with CIs, forest plots, TMB distributions
+6. **Dashboard** — Streamlit app: input molecular profile, get risk percentile and survival estimates
+7. **Testing** — pytest suite for preprocessing, features, and model outputs
 
-**Data Engineering**: DuckDB feature store with explicit SQL queries for cohort selection, feature joins, and summary statistics. Demonstrates SQL-based data pipelines and efficient columnar storage.
+## Tools Used
 
-**GDC API Integration**: REST API client (requests library) with pagination, error handling, and manifest validation. Handles real-world data acquisition challenges.
+| Category | Tools |
+|----------|-------|
+| Workflow | Snakemake |
+| Data Acquisition | GDC REST API (requests) |
+| Data Store | DuckDB (SQL queries) |
+| Survival Models | lifelines (Cox PH, KM) |
+| Dashboard | Streamlit |
+| Visualization | matplotlib, seaborn |
+| Scripting | Bash (download, validation, md5sum) |
+| Testing | pytest |
+| Containers | Docker (per-step Dockerfiles) |
 
-**Bash Scripting**: Directory scaffolding, file validation with md5sum, and standard Unix text processing tools (awk, cut, sort).
+## DuckDB Feature Store
 
-**Survival Modeling**: Cox Proportional Hazards and Kaplan-Meier analysis using lifelines. Multivariate risk stratification with concordance index validation.
-
-**Visualization**: Publication-quality matplotlib/seaborn figures (KM curves with confidence intervals, forest plots of hazard ratios, distribution plots).
-
-**Streamlit Dashboard**: Interactive risk calculator with patient molecular profile input, real-time risk percentile computation, survival probability estimates, and feature importance display.
-
-**Testing**: pytest unit tests for preprocessing edge cases, feature construction correctness, and model output validation.
-
-**Docker**: Containerized environments for download, analysis, and dashboard steps with reproducible dependencies.
-
-## Biological Context
-
-**Gastroesophageal Adenocarcinoma (GEA)** is an aggressive cancer with poor prognosis. Chemotherapy response varies widely among patients, and identifying predictive biomarkers is critical for precision oncology.
-
-**MSI-H (Microsatellite Instability-High)**: Indicates mismatch repair deficiency; associated with better immunotherapy response but variable chemotherapy outcomes.
-
-**TMB (Tumor Mutational Burden)**: Higher mutation load correlates with immune infiltration and can predict immunotherapy benefit.
-
-**DDR Mutations (DNA Damage Repair)**: Pathogenic mutations in BRCA1/2, ATM, ATR, and other DDR genes predict sensitivity to PARP inhibitors and platinum-based chemotherapy.
-
-**Immune Subtype**: TCGA immune classification (C1–C5) reflects tumor microenvironment composition and predicts treatment response.
-
-This pipeline integrates these features into a Cox model to compute individual risk scores and survival probabilities.
-
-## Project Structure
-
-```
-project-6-gea-survival-pipeline/
-├── Snakefile                          # Full pipeline DAG
-├── config/
-│   └── config.yaml                    # Pipeline parameters and feature toggles
-├── workflow/
-│   ├── rules/                         # Modular Snakemake rules
-│   └── envs/                          # Conda environments per step
-├── scripts/
-│   ├── bash/
-│   │   ├── download_tcga.sh           # GDC manifest download + validation
-│   │   └── setup_dirs.sh              # Directory scaffolding
-│   └── python/
-│       ├── fetch_gdc_api.py           # GDC REST API client
-│       ├── generate_synthetic_data.py # Synthetic TCGA data for portfolio
-│       ├── preprocess.py              # Data cleaning + DuckDB ingestion
-│       ├── build_feature_matrix.py    # Multi-omic feature construction
-│       ├── survival_model.py          # Cox PH + KM fitting
-│       └── figures.py                 # Publication-quality plots
-├── dashboard/
-│   └── app.py                         # Streamlit risk stratifier
-├── tests/
-│   ├── test_preprocessing.py          # Preprocessing validation
-│   ├── test_features.py               # Feature matrix correctness
-│   └── test_model.py                  # Model output validation
-├── docker/
-│   ├── Dockerfile.download            # GDC API + bash tools
-│   ├── Dockerfile.analysis            # lifelines + duckdb
-│   └── Dockerfile.dashboard           # streamlit
-├── notebooks/
-│   └── exploratory_analysis.ipynb     # EDA and data cleaning decisions
-├── data/
-│   ├── raw/                           # Downloaded TCGA data
-│   └── processed/                     # DuckDB feature store
-├── results/
-│   ├── cox_model.pkl                  # Fitted Cox model
-│   ├── cox_model_summary.csv          # Model coefficients + p-values
-│   ├── risk_scores.csv                # Patient risk percentiles
-│   └── figures/                       # Publication-quality plots
-├── requirements.txt
-├── environment.yaml
-└── README.md
-```
-
-## Key Implementation Details
-
-### GDC API (scripts/python/fetch_gdc_api.py)
-
-Uses the GDC REST API (https://api.gdc.cancer.gov) to query TCGA-STAD for clinical data and somatic mutations. Implements pagination (size/from parameters) and error handling for robust data acquisition.
-
-### DuckDB Feature Store (scripts/python/query_cohort.py)
-
-Loads cleaned data into DuckDB at `data/processed/features.duckdb`. Cohort selection uses explicit SQL:
+Cohort selection uses explicit SQL:
 
 ```sql
 SELECT case_id, msi_status, tmb, ddr_burden, immune_subtype, os_days, os_event
@@ -117,112 +54,69 @@ JOIN clinical ON molecular_features.case_id = clinical.case_id
 WHERE primary_site = 'Stomach' AND treatment_type IS NOT NULL
 ```
 
-### Feature Matrix (scripts/python/build_feature_matrix.py)
+## Project Structure
 
-Constructs multi-omic features:
-- **MSI status**: Binary (MSI-H vs MSS)
-- **TMB**: Total somatic mutations per megabase
-- **DDR burden**: Count of pathogenic mutations in DDR gene set (BRCA1, BRCA2, ATM, ATR, PALB2, RAD51, MLH1, MSH2, MSH6, POLE)
-- **Immune subtype**: From published TCGA immune classifications
-
-### Survival Modeling (scripts/python/survival_model.py)
-
-Fits Cox Proportional Hazards model with MSI status, TMB, DDR burden, immune subtype, and age as covariates. Outputs concordance index, hazard ratios with 95% CIs, and individual risk scores.
-
-### Streamlit Dashboard (dashboard/app.py)
-
-Interactive risk calculator with:
-- Sidebar inputs for patient molecular profile
-- Real-time risk percentile computation
-- Estimated survival probabilities at 12, 24, 36 months
-- Feature importance display (hazard ratios)
-- Cohort comparison statistics
-- Educational disclaimer
-
-## Running the Pipeline
-
-### Full Pipeline with Snakemake
-
-```bash
-snakemake --cores 4
 ```
-
-This executes all steps: synthetic data generation → preprocessing → feature engineering → survival modeling → figure generation.
-
-### Individual Steps
-
-```bash
-# Generate synthetic data
-python scripts/python/generate_synthetic_data.py
-
-# Preprocess and load to DuckDB
-python scripts/python/preprocess.py data/raw/TCGA-STAD_clinical.json data/raw/TCGA-STAD_mutations.csv data/raw/TCGA-STAD_msi_status.csv data/raw/TCGA-STAD_immune_subtypes.csv data/processed/features.duckdb
-
-# Build feature matrix
-python scripts/python/build_feature_matrix.py data/processed/features.duckdb data/raw/TCGA-STAD_mutations.csv data/processed/feature_matrix.csv
-
-# Fit survival models
-python scripts/python/survival_model.py data/processed/feature_matrix.csv results
-
-# Generate figures
-python scripts/python/figures.py data/processed/feature_matrix.csv results/cox_model.pkl results/figures
-
-# Run tests
-pytest tests/ -v
-
-# Launch dashboard
-streamlit run dashboard/app.py
-```
-
-## Testing
-
-```bash
-pytest tests/ -v
-```
-
-Tests validate:
-- Preprocessing: No NaN values in critical columns, positive OS days, binary event encoding
-- Features: Non-negative DDR burden, expected columns, positive TMB, no NaN in features
-- Model: Risk scores are positive floats, concordance index between 0–1, correct output shape
-
-## Docker Containers
-
-Each step has a dedicated container for reproducibility:
-
-```bash
-# Build containers
-docker build -f docker/Dockerfile.download -t gea-download .
-docker build -f docker/Dockerfile.analysis -t gea-analysis .
-docker build -f docker/Dockerfile.dashboard -t gea-dashboard .
-
-# Run dashboard
-docker run -p 8501:8501 gea-dashboard streamlit run dashboard/app.py
+project-6-gea-survival-pipeline/
+├── Snakefile
+├── config/
+│   └── config.yaml
+├── workflow/
+│   ├── rules/                     # download, preprocess, features, model, figures
+│   └── envs/                      # Conda envs per step
+├── scripts/
+│   ├── bash/
+│   │   ├── download_tcga.sh       # GDC download + md5 validation
+│   │   └── setup_dirs.sh
+│   └── python/
+│       ├── fetch_gdc_api.py       # GDC REST API client
+│       ├── generate_synthetic_data.py
+│       ├── preprocess.py          # Cleaning + DuckDB ingestion
+│       ├── build_feature_matrix.py
+│       ├── survival_model.py      # Cox PH + KM
+│       └── figures.py
+├── dashboard/
+│   └── app.py                     # Streamlit risk calculator
+├── tests/
+│   ├── test_preprocessing.py
+│   ├── test_features.py
+│   └── test_model.py
+├── docker/
+│   ├── Dockerfile.download
+│   ├── Dockerfile.analysis
+│   └── Dockerfile.dashboard
+├── notebooks/
+│   └── exploratory_analysis.ipynb
+├── data/
+├── results/
+├── requirements.txt
+├── environment.yaml
+└── README.md
 ```
 
 ## Honest Note
 
-**This is a portfolio project on public TCGA data.** Survival estimates should **NOT** be used for clinical decision-making. The synthetic data used here mirrors real TCGA structure but is not actual patient data. The Cox model is trained on a small cohort and has not been validated on independent data.
+This is a portfolio project built on public TCGA data. The survival estimates are **not for clinical use**. The synthetic data mirrors real TCGA structure but is not actual patient data. For clinical applications, this pipeline would require validation on an independent prospective cohort, IRB oversight, and regulatory approval.
 
-For clinical applications, this pipeline would require:
-- Validation on an independent prospective cohort
-- Regulatory approval (FDA 510(k) or De Novo)
-- Clinical trial data
-- Institutional review board oversight
+## My Role
+
+This is the capstone — connecting everything built in Projects 1–4 back to the original clinical question. I designed the pipeline architecture, selected the biological feature set based on my thesis findings, and reviewed survival model outputs for clinical plausibility. Implementation was heavily AI-assisted.
+
+## Context in the Portfolio
+
+This is **Project 6 of 7** — currently in development. It integrates molecular features from the preceding projects (MSI from Project 1, immune subtypes from Project 2, SHAP-validated biomarkers from Projects 3–4) into a single survival model with a deployable Streamlit calculator. It closes the loop on the clinical question that opened the portfolio. See the [portfolio site](https://github.com/adamhoffman2155-hue/bioinformatics-portfolio) for the full narrative.
 
 ## References
 
-- GDC Portal: https://portal.gdc.cancer.gov
-- TCGA-STAD Project: https://www.cancer.gov/about-cancer/understanding/what-is-cancer
-- lifelines Documentation: https://lifelines.readthedocs.io
-- Snakemake: https://snakemake.readthedocs.io
-- DuckDB: https://duckdb.org
+- [GDC Portal](https://portal.gdc.cancer.gov)
+- [lifelines documentation](https://lifelines.readthedocs.io)
+- [Snakemake](https://snakemake.readthedocs.io)
+- [DuckDB](https://duckdb.org)
+
+## License
+
+MIT
 
 ## Author
 
-Adam Hoffman  
-Bioinformatics & Computational Biology  
-M.Sc. Cancer Research, McGill University
-
----
-
-*Built as a portfolio project demonstrating production-grade bioinformatics engineering: Snakemake orchestration, DuckDB SQL pipelines, survival modeling, Streamlit dashboards, Docker containerization, and comprehensive testing.*
+Adam Hoffman — M.Sc. Cancer Research, McGill University
