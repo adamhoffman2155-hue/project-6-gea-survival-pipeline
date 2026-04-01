@@ -1,0 +1,42 @@
+# GEA Survival Risk Stratifier — Pipeline Configuration
+
+# Cohort parameters
+cohort:
+  project_id: "TCGA-STAD"
+  primary_site: "Stomach"
+  disease_type: "Adenocarcinoma"
+  min_followup_days: 30
+
+# Feature toggles
+features:
+  msi_status: true
+  tmb: true
+  ddr_burden: true
+  immune_subtype: true
+
+# DDR gene set for burden calculation
+ddr_genes:
+  - "BRCA1"
+  - "BRCA2"
+  - "ATM"
+  - "ATR"
+  - "PALB2"
+  - "RAD51"
+  - "MLH1"
+  - "MSH2"
+  - "MSH6"
+  - "POLE"
+
+# Survival modeling
+survival_model:
+  method: "cox"  # cox or kaplan_meier
+  stratification: "msi_status"  # msi_status, ddr_quartile, or none
+  min_events: 10
+
+# Output paths
+paths:
+  raw_data: "data/raw"
+  processed_data: "data/processed"
+  results: "results"
+  figures: "results/figures"
+  database: "data/processed/features.duckdb"

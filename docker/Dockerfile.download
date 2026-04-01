@@ -1,0 +1,23 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir requests
+
+# Copy scripts
+COPY scripts/python/fetch_gdc_api.py .
+COPY scripts/bash/ /usr/local/bin/
+
+# Make bash scripts executable
+RUN chmod +x /usr/local/bin/*.sh
+
+ENTRYPOINT ["python", "fetch_gdc_api.py"]
