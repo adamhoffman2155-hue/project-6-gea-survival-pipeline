@@ -41,14 +41,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Title
-st.title("🔬 GEA Survival Risk Stratifier")
-st.markdown("**Predict chemotherapy response and survival in gastroesophageal adenocarcinoma**")
+st.title("🔬 Gastroesophageal Adenocarcinoma Survival Risk Stratifier")
+st.markdown("**Predict chemotherapy response and survival in gastroesophageal adenocarcinoma patients**))
 
 # Disclaimer
 st.warning("""
-⚠️ **DISCLAIMER**: This tool is for educational purposes only. 
-It should NOT be used for clinical decision-making. 
-Survival estimates are based on public TCGA data and portfolio modeling.
+⚠️ **DISCLAIMER**: This tool is for educational and research purposes only. 
+It should NOT be used for clinical decision-making or patient care. 
+Survival estimates are based on public The Cancer Genome Atlas data and portfolio demonstration modeling.
 """)
 
 # Load model and data
@@ -77,41 +77,42 @@ if cox_model is None:
 st.sidebar.header("📋 Patient Molecular Profile")
 
 msi_status = st.sidebar.selectbox(
-    "MSI Status",
-    options=["MSS", "MSI-H"],
-    help="Microsatellite Instability Status"
+    "Microsatellite Instability Status",
+    options=["Microsatellite Stable", "Microsatellite Instability High"],
+    help="Microsatellite Instability indicates mismatch repair deficiency"
 )
 
 tmb = st.sidebar.slider(
-    "Tumor Mutational Burden (TMB)",
+    "Tumor Mutational Burden (mutations per megabase)",
     min_value=0.0,
     max_value=100.0,
     value=5.0,
     step=0.5,
-    help="Mutations per megabase"
+    help="Total number of somatic mutations per megabase of sequenced genome"
 )
 
 ddr_burden = st.sidebar.slider(
-    "DDR Gene Mutation Burden",
+    "DNA Damage Repair Gene Mutation Count",
     min_value=0,
     max_value=10,
     value=2,
-    help="Count of pathogenic mutations in DDR genes (BRCA1/2, ATM, ATR, etc.)"
+    help="Count of pathogenic mutations in DNA Damage Repair genes (BRCA1, BRCA2, ATM, ATR, and others)"
 )
 
 immune_subtype = st.sidebar.selectbox(
-    "Immune Subtype",
-    options=["C1: Wound Healing", "C2: IFN-gamma Dominant", "C3: Inflammatory", 
+    "Tumor Immune Subtype",
+    options=["C1: Wound Healing", "C2: Interferon-Gamma Dominant", "C3: Inflammatory", 
              "C4: Lymphoid Depleted", "C5: Immunologically Quiet"],
-    help="TCGA immune classification"
+    help="The Cancer Genome Atlas immune classification based on tumor microenvironment"
 )
 
 age = st.sidebar.slider(
-    "Age at Diagnosis",
+    "Patient Age at Diagnosis (years)",
     min_value=30,
     max_value=90,
     value=65,
-    step=1
+    step=1,
+    help="Age in years at time of cancer diagnosis"
 )
 
 # Predict button
@@ -126,7 +127,7 @@ if st.sidebar.button("🔮 Calculate Risk", key="predict_btn"):
         "C5: Immunologically Quiet": 5
     }
     
-    msi_binary = 1 if msi_status == "MSI-H" else 0
+    msi_binary = 1 if msi_status == "Microsatellite Instability High" else 0
     immune_code = immune_mapping[immune_subtype]
     
     # Standardize using cohort statistics
@@ -164,25 +165,25 @@ if st.sidebar.button("🔮 Calculate Risk", key="predict_btn"):
         st.metric(
             label="Risk Score",
             value=f"{risk_score:.2f}",
-            delta="Higher = Worse Prognosis"
+            delta="Higher values indicate worse prognosis"
         )
     
     with col2:
         st.metric(
             label="Risk Percentile",
             value=f"{risk_percentile:.1f}%",
-            delta="Relative to TCGA-STAD cohort"
+            delta="Relative to The Cancer Genome Atlas cohort"
         )
     
     with col3:
         risk_category = "High Risk" if risk_percentile > 66 else ("Intermediate Risk" if risk_percentile > 33 else "Low Risk")
         st.metric(
-            label="Risk Category",
+            label="Risk Stratification Category",
             value=risk_category
         )
     
     # Survival probability estimates
-    st.subheader("📊 Estimated Survival Probabilities")
+    st.subheader("📊 Estimated Overall Survival Probabilities")
     
     timepoints = [365, 730, 1095]  # 12, 24, 36 months
     timepoint_labels = ["12 months", "24 months", "36 months"]
@@ -200,12 +201,12 @@ if st.sidebar.button("🔮 Calculate Risk", key="predict_btn"):
     for i, (tp, label) in enumerate(zip(timepoints, timepoint_labels)):
         with [col1, col2, col3][i]:
             st.metric(
-                label=label,
+                label=f"Survival at {label}",
                 value=f"{survival_probs[tp]:.1%}"
             )
     
     # Feature importance (coefficients)
-    st.subheader("🔍 Feature Contributions to Risk")
+    st.subheader("🔍 Feature Contributions to Risk Score")
     
     cox_summary = cox_model.summary
     cox_summary["exp_coef"] = np.exp(cox_summary["coef"])
@@ -218,33 +219,37 @@ if st.sidebar.button("🔮 Calculate Risk", key="predict_btn"):
     })
     
     st.dataframe(feature_importance.set_index("Feature"), use_container_width=True)
+    st.caption("Hazard Ratio > 1 indicates increased risk; < 1 indicates decreased risk")
     
     # Cohort comparison
-    st.subheader("📈 Comparison to TCGA-STAD Cohort")
+    st.subheader("📈 Comparison to The Cancer Genome Atlas Gastroesophageal Adenocarcinoma Cohort")
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.write("**Your Profile:**")
-        st.write(f"- MSI Status: {msi_status}")
-        st.write(f"- TMB: {tmb:.1f} mutations/Mb")
-        st.write(f"- DDR Burden: {ddr_burden} mutations")
+        st.write("**Your Patient Profile:**")
+        st.write(f"- Microsatellite Instability Status: {msi_status}")
+        st.write(f"- Tumor Mutational Burden: {tmb:.1f} mutations per megabase")
+        st.write(f"- DNA Damage Repair Gene Mutations: {ddr_burden}")
         st.write(f"- Immune Subtype: {immune_subtype}")
-        st.write(f"- Age: {age} years")
+        st.write(f"- Age at Diagnosis: {age} years")
     
     with col2:
         st.write("**Cohort Statistics:**")
-        st.write(f"- N = {len(feature_matrix)} cases")
-        st.write(f"- Median TMB: {feature_matrix['tmb'].median():.1f} mutations/Mb")
-        st.write(f"- Median DDR Burden: {feature_matrix['ddr_burden'].median():.0f} mutations")
-        st.write(f"- MSI-H: {(feature_matrix['msi_binary'] == 1).sum() / len(feature_matrix):.1%}")
+        st.write(f"- Total Cases: {len(feature_matrix)}")
+        st.write(f"- Median Tumor Mutational Burden: {feature_matrix['tmb'].median():.1f} mutations per megabase")
+        st.write(f"- Median DNA Damage Repair Gene Mutations: {feature_matrix['ddr_burden'].median():.0f}")
+        st.write(f"- Microsatellite Instability High Prevalence: {(feature_matrix['msi_binary'] == 1).sum() / len(feature_matrix):.1%}")
 
 # Footer
 st.markdown("---")
 st.markdown("""
 **About this tool:**
-- Built with TCGA-STAD public data
-- Cox Proportional Hazards model
+- Built with The Cancer Genome Atlas Gastroesophageal Adenocarcinoma public data
+- Cox Proportional Hazards survival model
 - For educational and research purposes only
-- Not validated for clinical use
+- Not validated for clinical use or patient care
+- Survival estimates are illustrative and based on portfolio demonstration data
+
+**Disclaimer:** This is a portfolio project. Real clinical applications require independent validation, regulatory approval, and clinical trial data.
 """)
