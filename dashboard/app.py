@@ -42,7 +42,7 @@ st.markdown("""
 
 # Title
 st.title("🔬 Gastroesophageal Adenocarcinoma Survival Risk Stratifier")
-st.markdown("**Predict chemotherapy response and survival in gastroesophageal adenocarcinoma patients**))
+st.markdown("**Predict chemotherapy response and survival in gastroesophageal adenocarcinoma patients**")
 
 # Disclaimer
 st.warning("""
@@ -121,7 +121,7 @@ if st.sidebar.button("🔮 Calculate Risk", key="predict_btn"):
     # Prepare input data (must match Cox model training)
     immune_mapping = {
         "C1: Wound Healing": 1,
-        "C2: IFN-gamma Dominant": 2,
+        "C2: Interferon-Gamma Dominant": 2,
         "C3: Inflammatory": 3,
         "C4: Lymphoid Depleted": 4,
         "C5: Immunologically Quiet": 5
