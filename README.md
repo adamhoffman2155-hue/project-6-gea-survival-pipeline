@@ -58,12 +58,14 @@ WHERE primary_site = 'Stomach' AND treatment_type IS NOT NULL
 
 ```
 project-6-gea-survival-pipeline/
+├── README.md
 ├── Snakefile
+├── .gitignore
+├── environment.yaml
+├── requirements.txt
+├── LICENSE
 ├── config/
 │   └── config.yaml
-├── workflow/
-│   ├── rules/                     # download, preprocess, features, model, figures
-│   └── envs/                      # Conda envs per step
 ├── scripts/
 │   ├── bash/
 │   │   ├── download_tcga.sh       # GDC download + md5 validation
@@ -74,7 +76,8 @@ project-6-gea-survival-pipeline/
 │       ├── preprocess.py          # Cleaning + DuckDB ingestion
 │       ├── build_feature_matrix.py
 │       ├── survival_model.py      # Cox PH + KM
-│       └── figures.py
+│       ├── figures.py
+│       └── query_cohort.py
 ├── dashboard/
 │   └── app.py                     # Streamlit risk calculator
 ├── tests/
@@ -85,13 +88,8 @@ project-6-gea-survival-pipeline/
 │   ├── Dockerfile.download
 │   ├── Dockerfile.analysis
 │   └── Dockerfile.dashboard
-├── notebooks/
-│   └── exploratory_analysis.ipynb
 ├── data/
-├── results/
-├── requirements.txt
-├── environment.yaml
-└── README.md
+└── results/
 ```
 
 ## Honest Note
@@ -100,11 +98,11 @@ This is a portfolio project built on public TCGA data. The survival estimates ar
 
 ## My Role
 
-This is the capstone — connecting everything built in Projects 1–4 back to the original clinical question. I designed the pipeline architecture, selected the biological feature set based on my thesis findings, and reviewed survival model outputs for clinical plausibility. Implementation was heavily AI-assisted.
+This is the capstone — connecting everything built in Projects 1-4 back to the original clinical question. I designed the pipeline architecture, selected the biological feature set based on my thesis findings, and reviewed survival model outputs for clinical plausibility. Implementation was heavily AI-assisted.
 
 ## Context in the Portfolio
 
-This is **Project 6 of 7** — currently in development. It integrates molecular features from the preceding projects (MSI from Project 1, immune subtypes from Project 2, SHAP-validated biomarkers from Projects 3–4) into a single survival model with a deployable Streamlit calculator. It closes the loop on the clinical question that opened the portfolio. See the [portfolio site](https://github.com/adamhoffman2155-hue/bioinformatics-portfolio) for the full narrative.
+This is **Project 6 of 7**. It integrates molecular features from the preceding projects (MSI from Project 1, immune subtypes from Project 2, SHAP-validated biomarkers from Projects 3-4) into a single survival model with a deployable Streamlit calculator. It closes the loop on the clinical question that opened the portfolio. See the [portfolio site](https://github.com/adamhoffman2155-hue/bioinformatics-portfolio) for the full narrative.
 
 ## References
 

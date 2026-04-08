@@ -6,6 +6,7 @@ Fetches clinical data and somatic mutations from the GDC API.
 Handles pagination and writes raw downloads to data/raw/.
 """
 
+import argparse
 import requests
 import json
 import logging
@@ -178,11 +179,30 @@ def _fetch_mutation_data(project_id: str, output_dir: str) -> Dict[str, Any]:
     }
 
 
+def parse_args():
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(description="Fetch TCGA data from GDC API")
+    parser.add_argument(
+        "--project", default="TCGA-STAD",
+        help="GDC project ID (default: TCGA-STAD)"
+    )
+    parser.add_argument(
+        "--data-type", default="clinical",
+        choices=["clinical", "mutation"],
+        help="Type of data to fetch (default: clinical)"
+    )
+    parser.add_argument(
+        "--output", default="data/raw",
+        help="Output directory (default: data/raw)"
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    import sys
-    
-    data_type = sys.argv[1] if len(sys.argv) > 1 else "clinical"
-    output_dir = sys.argv[2] if len(sys.argv) > 2 else "data/raw"
-    
-    result = fetch_gdc_data(data_type=data_type, output_dir=output_dir)
+    args = parse_args()
+    result = fetch_gdc_data(
+        project_id=args.project,
+        data_type=args.data_type,
+        output_dir=args.output,
+    )
     print(json.dumps(result, indent=2))

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 # Page config
 st.set_page_config(
     page_title="GEA Survival Risk Stratifier",
-    page_icon="🔬",
+    page_icon="\U0001f52c",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -41,12 +41,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Title
-st.title("🔬 Gastroesophageal Adenocarcinoma Survival Risk Stratifier")
+st.title("\U0001f52c Gastroesophageal Adenocarcinoma Survival Risk Stratifier")
 st.markdown("**Predict chemotherapy response and survival in gastroesophageal adenocarcinoma patients**")
 
 # Disclaimer
 st.warning("""
-⚠️ **DISCLAIMER**: This tool is for educational and research purposes only. 
+\u26a0\ufe0f **DISCLAIMER**: This tool is for educational and research purposes only. 
 It should NOT be used for clinical decision-making or patient care. 
 Survival estimates are based on public The Cancer Genome Atlas data and portfolio demonstration modeling.
 """)
@@ -74,7 +74,7 @@ if cox_model is None:
     st.stop()
 
 # Sidebar inputs
-st.sidebar.header("📋 Patient Molecular Profile")
+st.sidebar.header("\U0001f4cb Patient Molecular Profile")
 
 msi_status = st.sidebar.selectbox(
     "Microsatellite Instability Status",
@@ -101,7 +101,7 @@ ddr_burden = st.sidebar.slider(
 
 immune_subtype = st.sidebar.selectbox(
     "Tumor Immune Subtype",
-    options=["C1: Wound Healing", "C2: Interferon-Gamma Dominant", "C3: Inflammatory", 
+    options=["C1: Wound Healing", "C2: IFN-gamma Dominant", "C3: Inflammatory", 
              "C4: Lymphoid Depleted", "C5: Immunologically Quiet"],
     help="The Cancer Genome Atlas immune classification based on tumor microenvironment"
 )
@@ -116,12 +116,12 @@ age = st.sidebar.slider(
 )
 
 # Predict button
-if st.sidebar.button("🔮 Calculate Risk", key="predict_btn"):
+if st.sidebar.button("\U0001f52e Calculate Risk", key="predict_btn"):
     
     # Prepare input data (must match Cox model training)
     immune_mapping = {
         "C1: Wound Healing": 1,
-        "C2: Interferon-Gamma Dominant": 2,
+        "C2: IFN-gamma Dominant": 2,
         "C3: Inflammatory": 3,
         "C4: Lymphoid Depleted": 4,
         "C5: Immunologically Quiet": 5
@@ -183,7 +183,8 @@ if st.sidebar.button("🔮 Calculate Risk", key="predict_btn"):
         )
     
     # Survival probability estimates
-    st.subheader("📊 Estimated Overall Survival Probabilities")
+    st.subheader("\U0001f4ca Estimated Overall Survival Probabilities")
+    st.caption("Note: These are illustrative estimates based on portfolio demonstration data, not validated clinical predictions.")
     
     timepoints = [365, 730, 1095]  # 12, 24, 36 months
     timepoint_labels = ["12 months", "24 months", "36 months"]
@@ -206,7 +207,7 @@ if st.sidebar.button("🔮 Calculate Risk", key="predict_btn"):
             )
     
     # Feature importance (coefficients)
-    st.subheader("🔍 Feature Contributions to Risk Score")
+    st.subheader("\U0001f50d Feature Contributions to Risk Score")
     
     cox_summary = cox_model.summary
     cox_summary["exp_coef"] = np.exp(cox_summary["coef"])
@@ -222,7 +223,7 @@ if st.sidebar.button("🔮 Calculate Risk", key="predict_btn"):
     st.caption("Hazard Ratio > 1 indicates increased risk; < 1 indicates decreased risk")
     
     # Cohort comparison
-    st.subheader("📈 Comparison to The Cancer Genome Atlas Gastroesophageal Adenocarcinoma Cohort")
+    st.subheader("\U0001f4c8 Comparison to The Cancer Genome Atlas Gastroesophageal Adenocarcinoma Cohort")
     
     col1, col2 = st.columns(2)
     
