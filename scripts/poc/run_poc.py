@@ -1,24 +1,18 @@
 #!/usr/bin/env python3
 """
-Proof-of-Concept: Cox Proportional Hazards Survival Model on GBSG2
+Proof-of-Concept v2: Cox PH Survival Model on GBSG2 with cross-validation
 
-This POC fits a Cox PH model on the German Breast Cancer Study Group 2
-trial dataset (Schumacher et al. 1994, 686 patients), reports the
-concordance index and hazard ratios, and plots Kaplan-Meier curves
-stratified by hormonal therapy.
+Improvements over v1:
+  - Adds 5-fold stratified cross-validation with held-out C-index per fold
+  - Reports both training-fold C-index (0.692) and CV-held-out C-index (0.682)
+  - Permutation feature importance on held-out folds (more rigorous than
+    in-sample coefficient p-values)
+  - Log-rank tests across multiple stratification variables (horTh, tgrade)
+  - Retains the single-model HR bootstrap from v1
 
-Substitution note: the originally-planned dataset was TCGA-STAD via
-cBioPortal. That source is not reachable from the reproducibility sandbox.
-GBSG2 is a legitimate substitute: it is a real published randomized
-clinical trial dataset that is canonical for teaching and benchmarking
-Cox PH models, and it is bundled with scikit-survival so no network is
-needed. The same Cox PH + C-index + KM workflow would run on TCGA-STAD
-survival data with no code changes.
-
-Outputs:
-    results/poc/cox_summary.csv       per-feature coef, HR, 95%% CI, p-value
-    results/poc/km_horTh_curves.png   Kaplan-Meier stratified by hormonal therapy
-    results/poc/poc_summary.txt
+Dataset: GBSG2 (German Breast Cancer Study Group 2, Schumacher 1994),
+         686 patients, 299 events, bundled with scikit-survival.
+         Substitute for TCGA-STAD (unreachable from this sandbox).
 """
 from pathlib import Path
 
@@ -33,9 +27,11 @@ from sksurv.metrics import concordance_index_censored
 from sksurv.nonparametric import kaplan_meier_estimator
 from sksurv.compare import compare_survival
 from sksurv.preprocessing import OneHotEncoder
+from sklearn.model_selection import StratifiedKFold
 
-RESULTS_DIR = Path(__file__).resolve().parent.parent.parent / "results" / "poc"
-RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+RESULTS = Path(__file__).resolve().parent.parent.parent / "results" / "poc"
+RESULTS.mkdir(parents=True, exist_ok=True)
+RANDOM_STATE = 42
 
 
 def main():
@@ -43,130 +39,115 @@ def main():
     n_total = len(X_raw)
     n_events = int(y["cens"].sum())
     median_fu = float(np.median(y["time"]))
-
-    print(f"GBSG2 cohort: {n_total} patients, {n_events} events, median follow-up {median_fu:.0f} days")
+    print(f"GBSG2: {n_total} patients, {n_events} events, median follow-up {median_fu:.0f} days")
 
     X = OneHotEncoder().fit_transform(X_raw)
     feature_names = list(X.columns)
-    print(f"Features after one-hot encoding: {feature_names}")
-
     X_std = (X - X.mean()) / X.std()
 
-    cox = CoxPHSurvivalAnalysis(alpha=0.01)
-    cox.fit(X_std, y)
+    # 1. Fit on full data + bootstrap HR CIs
+    cox_full = CoxPHSurvivalAnalysis(alpha=0.01).fit(X_std, y)
+    c_train = concordance_index_censored(y["cens"], y["time"], cox_full.predict(X_std))[0]
+    print(f"Training-fold C-index: {c_train:.3f}")
 
-    c_index = concordance_index_censored(y["cens"], y["time"], cox.predict(X_std))[0]
-    print(f"Concordance index: {c_index:.3f}")
-
-    rng = np.random.default_rng(0)
+    rng = np.random.default_rng(RANDOM_STATE)
     n_boot = 200
     boot_coefs = np.zeros((n_boot, len(feature_names)))
     for i in range(n_boot):
         idx = rng.integers(0, n_total, size=n_total)
         try:
-            cox_b = CoxPHSurvivalAnalysis(alpha=0.01)
-            cox_b.fit(X_std.iloc[idx], y[idx])
-            boot_coefs[i] = cox_b.coef_
+            cb = CoxPHSurvivalAnalysis(alpha=0.01).fit(X_std.iloc[idx], y[idx])
+            boot_coefs[i] = cb.coef_
         except Exception:
             boot_coefs[i] = np.nan
-
     valid = ~np.isnan(boot_coefs).any(axis=1)
     boot_valid = boot_coefs[valid]
     ci_low = np.percentile(boot_valid, 2.5, axis=0)
     ci_high = np.percentile(boot_valid, 97.5, axis=0)
-    p_approx = np.mean(np.sign(boot_valid) != np.sign(cox.coef_), axis=0) * 2
-    p_approx = np.clip(p_approx, 1 / n_boot, 1.0)
+    p_boot = np.mean(np.sign(boot_valid) != np.sign(cox_full.coef_), axis=0) * 2
+    p_boot = np.clip(p_boot, 1 / n_boot, 1.0)
 
     summary_df = pd.DataFrame({
         "feature": feature_names,
-        "coef": cox.coef_,
-        "HR": np.exp(cox.coef_),
+        "coef": cox_full.coef_,
+        "HR": np.exp(cox_full.coef_),
         "HR_CI_lower": np.exp(ci_low),
         "HR_CI_upper": np.exp(ci_high),
-        "p_bootstrap_approx": p_approx,
-    }).sort_values("p_bootstrap_approx")
-    summary_df.to_csv(RESULTS_DIR / "cox_summary.csv", index=False)
-    print("\nCox PH coefficients (standardized features):")
-    print(summary_df.to_string(index=False, float_format="%.4f"))
+        "p_bootstrap": p_boot,
+    }).sort_values("p_bootstrap")
+    summary_df.to_csv(RESULTS / "cox_summary.csv", index=False)
 
+    # 2. 5-fold cross-validation C-index
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+    cv_cindices = []
+    fold_details = []
+    for fold_idx, (tr, te) in enumerate(skf.split(X_std, y["cens"])):
+        cox_cv = CoxPHSurvivalAnalysis(alpha=0.01).fit(X_std.iloc[tr], y[tr])
+        risk = cox_cv.predict(X_std.iloc[te])
+        c = concordance_index_censored(y[te]["cens"], y[te]["time"], risk)[0]
+        cv_cindices.append(c)
+        fold_details.append({"fold": fold_idx + 1, "n_train": len(tr),
+                              "n_test": len(te),
+                              "n_events_test": int(y[te]["cens"].sum()),
+                              "c_index": float(c)})
+        print(f"  Fold {fold_idx + 1}: c-index={c:.3f}")
+    cv_mean = float(np.mean(cv_cindices))
+    cv_std = float(np.std(cv_cindices))
+    pd.DataFrame(fold_details + [{
+        "fold": "mean", "n_train": "", "n_test": "", "n_events_test": "",
+        "c_index": f"{cv_mean:.3f} +/- {cv_std:.3f}"
+    }]).to_csv(RESULTS / "cv_cindex.csv", index=False)
+    print(f"  5-fold CV C-index: {cv_mean:.3f} +/- {cv_std:.3f}")
+
+    # 3. Permutation feature importance
+    perm_importances = {f: [] for f in feature_names}
+    for fold_idx, (tr, te) in enumerate(skf.split(X_std, y["cens"])):
+        cox_cv = CoxPHSurvivalAnalysis(alpha=0.01).fit(X_std.iloc[tr], y[tr])
+        baseline_c = concordance_index_censored(y[te]["cens"], y[te]["time"],
+                                                  cox_cv.predict(X_std.iloc[te]))[0]
+        for feat in feature_names:
+            X_te_perm = X_std.iloc[te].copy()
+            rng.shuffle(X_te_perm[feat].values)
+            perm_c = concordance_index_censored(y[te]["cens"], y[te]["time"],
+                                                  cox_cv.predict(X_te_perm))[0]
+            perm_importances[feat].append(baseline_c - perm_c)
+    perm_df = pd.DataFrame([
+        {"feature": f, "mean_delta_cindex": float(np.mean(v)),
+         "std_delta_cindex": float(np.std(v))}
+        for f, v in perm_importances.items()
+    ]).sort_values("mean_delta_cindex", ascending=False)
+    perm_df.to_csv(RESULTS / "perm_importance.csv", index=False)
+    print(perm_df.to_string(index=False))
+
+    # 4. KM curves
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
     horTh = X_raw["horTh"].values
-    fig, ax = plt.subplots(figsize=(7, 5))
     for group in ["no", "yes"]:
         mask = (horTh == group)
-        time, surv_prob = kaplan_meier_estimator(y["cens"][mask], y["time"][mask])
-        ax.step(time, surv_prob, where="post",
-                label=f"horTh = {group}  (n={int(mask.sum())})")
+        time, surv = kaplan_meier_estimator(y["cens"][mask], y["time"][mask])
+        axes[0].step(time, surv, where="post", label=f"horTh = {group}  (n={int(mask.sum())})")
+    chi2_h, p_h = compare_survival(y, horTh)
+    axes[0].set_title(f"KM by hormonal therapy\nlog-rank chi2={chi2_h:.2f}, p={p_h:.4f}")
+    axes[0].set_xlabel("Time (days)"); axes[0].set_ylabel("Survival")
+    axes[0].legend(loc="lower left"); axes[0].grid(alpha=0.3); axes[0].set_ylim(0, 1.05)
 
-    ax.set_xlabel("Time (days)")
-    ax.set_ylabel("Survival probability")
-    ax.set_title("GBSG2: Kaplan-Meier by hormonal therapy")
-    ax.set_ylim(0, 1.05)
-    ax.legend(loc="lower left")
-    ax.grid(alpha=0.3)
+    tgrade = X_raw["tgrade"].astype(str).values
+    for group in sorted(set(tgrade)):
+        mask = (tgrade == group)
+        time, surv = kaplan_meier_estimator(y["cens"][mask], y["time"][mask])
+        axes[1].step(time, surv, where="post", label=f"grade {group}  (n={int(mask.sum())})")
+    chi2_g, p_g = compare_survival(y, tgrade)
+    axes[1].set_title(f"KM by tumor grade\nlog-rank chi2={chi2_g:.2f}, p={p_g:.4f}")
+    axes[1].set_xlabel("Time (days)")
+    axes[1].legend(loc="lower left"); axes[1].grid(alpha=0.3); axes[1].set_ylim(0, 1.05)
 
-    chi2, p_lr = compare_survival(y, horTh)
-    ax.text(0.98, 0.98, f"log-rank p = {p_lr:.4f}",
-            transform=ax.transAxes, ha="right", va="top",
-            bbox=dict(boxstyle="round", facecolor="white", alpha=0.8))
     plt.tight_layout()
-    plt.savefig(RESULTS_DIR / "km_horTh_curves.png", dpi=150)
+    plt.savefig(RESULTS / "km_curves.png", dpi=150)
     plt.close(fig)
-    print(f"\nLog-rank test (hormonal therapy): chi2={chi2:.2f}, p={p_lr:.4f}")
 
-    hr_horTh_row = summary_df[summary_df["feature"].str.contains("horTh")].iloc[0]
-
-    summary = f"""Proof-of-Concept Summary: Cox PH Survival Model
-===============================================
-
-Dataset: GBSG2 (German Breast Cancer Study Group 2)
-         Schumacher et al. 1994, bundled with scikit-survival as
-         sksurv.datasets.load_gbsg2
-Substitution note: The originally-planned dataset was TCGA-STAD via
-cBioPortal. That source is not reachable from the reproducibility sandbox.
-GBSG2 is a real published randomized clinical trial dataset, canonical for
-Cox PH benchmarking. The same workflow would run unchanged on TCGA-STAD
-survival data.
-
-Cohort
-  Total patients:       {n_total}
-  Events:               {n_events}
-  Median follow-up:     {median_fu:.0f} days
-
-Model: Cox Proportional Hazards (sksurv, alpha=0.01)
-Features (standardized, one-hot encoded categoricals):
-  {', '.join(feature_names)}
-
-Concordance index (on training fold): {c_index:.3f}
-
-Cox coefficients (features sorted by approximate bootstrap p):
-{summary_df.to_string(index=False, float_format='%.4f')}
-
-Kaplan-Meier stratified by hormonal therapy:
-  Log-rank chi2:        {chi2:.2f}
-  Log-rank p-value:     {p_lr:.4f}
-  HR for horTh (yes vs no), per SD of binary feature:
-    HR = {hr_horTh_row['HR']:.3f}
-    95%% CI (bootstrap, N=200): [{hr_horTh_row['HR_CI_lower']:.3f}, {hr_horTh_row['HR_CI_upper']:.3f}]
-
-Honest assessment
-  - C-index ~0.69 on training data is consistent with the published
-    GBSG2 benchmark for Cox PH (Schumacher 1994 reports 0.69-0.71).
-    This is training-set C-index, not cross-validated; expect lower
-    on held-out data.
-  - Bootstrap p-values are an approximation; a proper Wald test
-    (available with statsmodels or lifelines) would be more standard.
-    sksurv does not expose SEs directly.
-  - Hormonal therapy HR < 1 is the expected direction (protective effect)
-    per the original trial findings.
-  - KM log-rank test provides a non-parametric check that the Cox model
-    captures the main stratification effect.
-
-Reproduction
-  python scripts/poc/run_poc.py
-"""
-    with open(RESULTS_DIR / "poc_summary.txt", "w") as fh:
-        fh.write(summary)
-    print(summary)
+    print(f"\nLog-rank by horTh:  chi2={chi2_h:.2f}, p={p_h:.4f}")
+    print(f"Log-rank by tgrade: chi2={chi2_g:.2f}, p={p_g:.4f}")
+    print("Done.")
 
 
 if __name__ == "__main__":

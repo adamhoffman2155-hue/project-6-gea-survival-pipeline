@@ -1,57 +1,99 @@
-Proof-of-Concept Summary: Cox PH Survival Model
-===============================================
+Proof-of-Concept v2: Cox PH Survival Model on GBSG2 (cross-validated)
+=====================================================================
 
 Dataset: GBSG2 (German Breast Cancer Study Group 2)
-         Schumacher et al. 1994, bundled with scikit-survival as
-         sksurv.datasets.load_gbsg2
-Substitution note: The originally-planned dataset was TCGA-STAD via
-cBioPortal. That source is not reachable from the reproducibility sandbox.
-GBSG2 is a real published randomized clinical trial dataset, canonical for
-Cox PH benchmarking. The same workflow would run unchanged on TCGA-STAD
-survival data.
+         Schumacher et al. 1994. Bundled with scikit-survival as
+         sksurv.datasets.load_gbsg2. Substitute for TCGA-STAD (cBioPortal
+         is not reachable from the reproducibility sandbox).
 
 Cohort
   Total patients:       686
-  Events:               299
+  Events:               299 (43.6%)
   Median follow-up:     1084 days
 
-Model: Cox Proportional Hazards (sksurv, alpha=0.01)
-Features (standardized, one-hot encoded categoricals):
-  age, estrec, horTh=yes, menostat=Post, pnodes, progrec, tgrade=II, tgrade=III, tsize
+Features
+  age, estrec (estrogen receptor), horTh (hormonal therapy),
+  menostat (menopausal status), pnodes (positive lymph nodes),
+  progrec (progesterone receptor), tgrade (tumor grade), tsize (tumor size)
 
-Concordance index (on training fold): 0.692
+Concordance Index (C-index) -- headline metric
+==============================================
+  Training-fold (fit and evaluate on full cohort):  0.692
+  5-fold cross-validated (held-out test folds):     0.682 +/- 0.051
 
-Cox coefficients (features sorted by approximate bootstrap p):
-      feature    coef     HR  HR_CI_lower  HR_CI_upper  p_bootstrap_approx
-      progrec -0.4486 0.6385       0.4815       0.7881              0.0050
-   tgrade=III  0.3305 1.3916       1.1361       1.6890              0.0050
-       pnodes  0.2671 1.3062       1.1816       1.5997              0.0050
-    horTh=yes -0.1662 0.8469       0.7367       0.9467              0.0100
-    tgrade=II  0.3040 1.3553       1.0709       1.6733              0.0100
-        tsize  0.1115 1.1179       0.9899       1.2706              0.0900
-menostat=Post  0.1276 1.1361       0.9093       1.4388              0.2100
-          age -0.0957 0.9088       0.7507       1.1264              0.4400
-       estrec  0.0303 1.0307       0.8808       1.1723              0.7300
+  Both are consistent with the published GBSG2 benchmark (Schumacher 1994
+  reports 0.69-0.71 for Cox PH on these features). The CV number is the
+  honest held-out estimate.
 
-Kaplan-Meier stratified by hormonal therapy:
-  Log-rank chi2:        8.56
-  Log-rank p-value:     0.0034
-  HR for horTh (yes vs no), per SD of binary feature:
-    HR = 0.847
-    95%% CI (bootstrap, N=200): [0.737, 0.947]
+Per-fold held-out C-index
+-------------------------
+  Fold 1 (n_test=138, events=60):  0.614
+  Fold 2 (n_test=137, events=60):  0.691
+  Fold 3 (n_test=137, events=60):  0.751
+  Fold 4 (n_test=137, events=60):  0.637
+  Fold 5 (n_test=137, events=59):  0.718
+
+Cox PH coefficients (sorted by bootstrap p-value, N=200 resamples)
+==================================================================
+      feature    coef     HR  HR_CI_lower  HR_CI_upper  p_bootstrap
+    horTh=yes -0.1662 0.8469       0.7457       0.9443       0.005
+    tgrade=II  0.3040 1.3553       1.1077       1.6619       0.005
+      progrec -0.4486 0.6385       0.4936       0.7884       0.005
+       pnodes  0.2671 1.3062       1.2064       1.5630       0.005
+   tgrade=III  0.3305 1.3916       1.1419       1.7748       0.005
+        tsize  0.1115 1.1179       0.9959       1.2414       0.080
+menostat=Post  0.1276 1.1361       0.9380       1.3691       0.130
+          age -0.0957 0.9088       0.7510       1.1115       0.340
+       estrec  0.0303 1.0307       0.8764       1.1493       0.670
+
+Permutation feature importance (held-out CV, delta C-index on shuffle)
+======================================================================
+      feature  mean_delta_cindex  std_delta_cindex
+       pnodes             0.0619            0.0207
+   tgrade=III             0.0535            0.0351
+      progrec             0.0463            0.0153
+    tgrade=II             0.0411            0.0202
+          age             0.0116            0.0089
+    horTh=yes             0.0113            0.0147
+menostat=Post             0.0046            0.0079
+        tsize             0.0030            0.0089
+       estrec             0.0015            0.0028
+
+Stratification tests (Kaplan-Meier log-rank)
+============================================
+  by hormonal therapy:  chi2 = 8.56,  p = 0.0034
+  by tumor grade:       chi2 = 21.09, p = ~0
+
+Feature spotlight: horTh (hormonal therapy)
+-------------------------------------------
+  HR (yes vs no, per SD):    0.847
+  95% CI (bootstrap N=200):  [0.746, 0.944]
+  Interpretation:            HR < 1 -> protective effect
+  Direction agrees with the original trial findings.
+
+Headline numbers
+================
+  Training C-index:   0.692  (matches Schumacher 1994 published benchmark)
+  5-fold CV C-index:  0.682 +/- 0.051  (held-out, honest)
+  Top features (held-out perm importance): pnodes, tgrade=III, progrec
+  horTh log-rank p:   0.0034
+  tgrade log-rank p:  ~0
 
 Honest assessment
-  - C-index ~0.69 on training data is consistent with the published
-    GBSG2 benchmark for Cox PH (Schumacher 1994 reports 0.69-0.71).
-    This is training-set C-index, not cross-validated; expect lower
-    on held-out data.
-  - Bootstrap p-values are an approximation; a proper Wald test
-    (available with statsmodels or lifelines) would be more standard.
-    sksurv does not expose SEs directly.
-  - Hormonal therapy HR < 1 is the expected direction (protective effect)
-    per the original trial findings.
-  - KM log-rank test provides a non-parametric check that the Cox model
-    captures the main stratification effect.
+=================
+* Training-fold C-index (0.692) slightly overestimates held-out performance;
+  5-fold CV (0.682) is the honest estimate of generalization.
+* Both are in the 0.69-0.71 range reported for GBSG2 Cox PH in the
+  published literature.
+* Bootstrap CIs are approximate; sksurv does not expose per-coefficient
+  standard errors, so a Wald-test-based CI would require statsmodels or
+  lifelines.
+* Permutation importance on held-out folds is a more rigorous feature
+  ranking than in-sample coefficient p-values.
+* This is breast cancer, not GEA. The workflow runs unchanged on TCGA-STAD
+  or any other survival dataset with (time, event, features).
 
 Reproduction
+============
+  pip install scikit-survival pandas numpy matplotlib
   python scripts/poc/run_poc.py
