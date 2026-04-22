@@ -4,6 +4,16 @@
 
 This is the sixth project in a [computational biology portfolio](https://github.com/adamhoffman2155-hue/bioinformatics-portfolio) — and the capstone. It answers the clinical question that started everything: can we integrate molecular features into a survival risk model that could inform treatment decisions? It combines MSI status, tumor mutational burden, DDR gene mutations, and immune subtype into a Cox proportional hazards model with an interactive Streamlit risk calculator.
 
+## At a Glance
+
+| | |
+|---|---|
+| **Stack** | Snakemake · DuckDB/SQL · lifelines · Streamlit · Docker · pytest · Bash |
+| **Data** | TCGA-STAD via GDC API (target); GBSG2 breast trial, n=686 (POC substitute) |
+| **POC headline** | Cox C-index 0.69 (matches Schumacher 1994 benchmark of 0.69–0.71); log-rank by hormonal therapy p=0.003 |
+| **Role** | Capstone — pipeline architecture, feature selection from thesis biology, clinical plausibility review; implementation AI-assisted |
+| **Portfolio** | Project 6 of 7 (capstone) · [full narrative](https://github.com/adamhoffman2155-hue/bioinformatics-portfolio) |
+
 ## Quick Start
 
 ```bash
