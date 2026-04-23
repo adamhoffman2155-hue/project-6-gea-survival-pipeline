@@ -183,7 +183,15 @@ def build_duckdb_feature_store(
         conn.execute("INSERT INTO clinical SELECT * FROM clinical_df")
 
         conn.execute("DELETE FROM mutations")
-        conn.execute("INSERT INTO mutations SELECT * FROM mutations_df")
+        # The mutations CSV is 10-col (case_id, gene_symbol, variant_classification,
+        # chromosome, start_position, reference_allele, tumor_seq_allele1,
+        # tumor_seq_allele2, tumor_f, is_pathogenic); the DuckDB schema keeps
+        # only the 5 needed for downstream features.
+        conn.execute(
+            "INSERT INTO mutations "
+            "SELECT case_id, gene_symbol, variant_classification, "
+            "is_pathogenic, tumor_f FROM mutations_df"
+        )
 
         conn.execute("DELETE FROM msi_status")
         conn.execute("INSERT INTO msi_status SELECT * FROM msi_df")
