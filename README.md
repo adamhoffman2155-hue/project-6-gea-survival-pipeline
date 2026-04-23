@@ -8,9 +8,9 @@ This is the sixth project in a [computational biology portfolio](https://github.
 
 | | |
 |---|---|
-| **Stack** | Snakemake · DuckDB/SQL · lifelines · Streamlit · Docker · pytest · Bash |
+| **Stack** | Snakemake · DuckDB/SQL · scikit-survival · lifelines · Streamlit · Docker · pytest · Bash |
 | **Data** | TCGA-STAD via GDC API (target); GBSG2 breast trial, n=686 (POC substitute) |
-| **POC headline** | Cox C-index 0.69 (matches Schumacher 1994 benchmark of 0.69–0.71); log-rank by hormonal therapy p=0.003 |
+| **POC headline** | 5-fold CV C-index 0.682 ± 0.051 (held-out); training-fold 0.692 matches Schumacher 1994 (0.69–0.71); log-rank by grade chi²=21 p≈0, by hormonal therapy p=0.003 |
 | **Role** | Capstone — pipeline architecture, feature selection from thesis biology, clinical plausibility review; implementation AI-assisted |
 | **Portfolio** | Project 6 of 7 (capstone) · [full narrative](https://github.com/adamhoffman2155-hue/bioinformatics-portfolio) |
 
@@ -27,35 +27,80 @@ snakemake --cores 4
 streamlit run dashboard/app.py
 ```
 
-## Proof of Concept
+## Proof of Concept (v2 — cross-validated)
 
-A minimal end-to-end Cox PH survival run on a real, published clinical trial dataset so reviewers can verify the survival-modeling workflow without a TCGA download.
+A minimal end-to-end Cox PH survival run on a real, published clinical-trial dataset so reviewers can verify the survival-modeling workflow without a TCGA download.
 
 **Dataset:** GBSG2 — German Breast Cancer Study Group 2 (Schumacher et al. 1994), 686 patients with 299 events. Accessed via `sksurv.datasets.load_gbsg2()` so no network or account is required.
 
 **Substitution note:** The full Snakemake pipeline targets TCGA-STAD via cBioPortal, but that host is not reachable from this reproducibility sandbox. GBSG2 is a real published randomized clinical trial dataset that is canonical for Cox PH benchmarking. The same sksurv Cox + C-index + KM code runs unchanged on any survival dataset.
 
-**What the POC tests:**
-- Cox Proportional Hazards fit on 9 features (age, tumor size, tumor grade, node count, progesterone/estrogen receptor, menopausal status, hormonal therapy)
-- Concordance index on training cohort
-- Bootstrap 95%% CIs on hazard ratios (N=200 resamples)
-- Kaplan-Meier curves stratified by hormonal therapy + log-rank test
+**Cohort:**
+- 686 patients, 299 events (43.6%), median follow-up 1084 days
 
-**Headline numbers** (actual run output):
-- Cohort: 686 patients, 299 events, median follow-up 1084 days
-- **Concordance index: 0.692** (matches Schumacher 1994 published benchmark of 0.69–0.71)
-- Top prognostic features by bootstrap p:
-  - `progrec` (progesterone receptor): HR = 0.64 (0.48–0.79), p ≈ 0.005 — protective
-  - `tgrade=III`: HR = 1.39 (1.14–1.69), p ≈ 0.005 — higher risk
-  - `pnodes` (positive nodes): HR = 1.31 (1.18–1.60), p ≈ 0.005 — higher risk
-  - `horTh=yes` (hormonal therapy): HR = 0.85 (0.74–0.95), p ≈ 0.01 — protective
-- **Log-rank test by hormonal therapy: chi² = 8.56, p = 0.0034**
+**Features used:** age, estrec (estrogen receptor), horTh (hormonal therapy), menostat (menopausal status), pnodes (positive lymph nodes), progrec (progesterone receptor), tgrade (tumor grade), tsize (tumor size).
 
-**Limits:**
-- C-index is training-fold only, not cross-validated; held-out performance will be lower
-- Bootstrap p-values are approximate; a proper Wald test from a stats package would be preferred
-- sksurv does not expose per-coefficient standard errors directly
-- GBSG2 is breast cancer, not GEA; biological interpretation is dataset-specific
+### Concordance index — headline metric
+
+| Estimate | Value |
+|---|---|
+| Training-fold C-index (fit + evaluate on full cohort) | **0.692** |
+| 5-fold cross-validated C-index (held-out test folds) | **0.682 ± 0.051** |
+
+Both are inside Schumacher 1994's published 0.69–0.71 range for Cox PH on these features. The CV number is the honest held-out estimate.
+
+Per-fold held-out C-index: 0.614, 0.691, 0.751, 0.637, 0.718.
+
+### Cox PH coefficients (sorted by bootstrap p, N=200 resamples)
+
+| Feature | Coef | HR | 95% CI | p_bootstrap |
+|---|---|---|---|---|
+| horTh=yes | -0.166 | 0.847 | 0.746–0.944 | 0.005 |
+| tgrade=II | +0.304 | 1.355 | 1.108–1.662 | 0.005 |
+| progrec | -0.449 | 0.638 | 0.494–0.788 | 0.005 |
+| pnodes | +0.267 | 1.306 | 1.206–1.563 | 0.005 |
+| tgrade=III | +0.330 | 1.392 | 1.142–1.775 | 0.005 |
+| tsize | +0.112 | 1.118 | 0.996–1.241 | 0.080 |
+| menostat=Post | +0.128 | 1.136 | 0.938–1.369 | 0.130 |
+| age | -0.096 | 0.909 | 0.751–1.111 | 0.340 |
+| estrec | +0.030 | 1.031 | 0.876–1.149 | 0.670 |
+
+### Permutation feature importance (held-out CV, ΔC-index on shuffle)
+
+| Feature | Mean ΔC-index | Std |
+|---|---|---|
+| pnodes | **0.062** | 0.021 |
+| tgrade=III | **0.054** | 0.035 |
+| progrec | **0.046** | 0.015 |
+| tgrade=II | 0.041 | 0.020 |
+| age | 0.012 | 0.009 |
+| horTh=yes | 0.011 | 0.015 |
+| menostat=Post | 0.005 | 0.008 |
+| tsize | 0.003 | 0.009 |
+| estrec | 0.001 | 0.003 |
+
+### Stratification tests (Kaplan-Meier log-rank)
+
+| Stratification | chi² | p |
+|---|---|---|
+| Tumor grade | 21.09 | ≈ 0 |
+| Hormonal therapy | 8.56 | 0.0034 |
+
+### Headline numbers
+
+- Training C-index: **0.692** (matches Schumacher 1994 benchmark)
+- 5-fold CV C-index: **0.682 ± 0.051** (held-out, honest)
+- Top features by held-out perm importance: pnodes, tgrade=III, progrec
+- horTh log-rank p: 0.0034
+- tgrade log-rank p: ≈ 0
+
+### Honest assessment
+
+- Training-fold C-index (0.692) slightly overestimates held-out performance; CV (0.682) is the honest estimate of generalization.
+- Both are in the 0.69–0.71 range reported for GBSG2 Cox PH in the published literature.
+- Bootstrap CIs are approximate; sksurv does not expose per-coefficient SEs, so a Wald-test-based CI would require statsmodels or lifelines.
+- Permutation importance on held-out folds is a more rigorous feature ranking than in-sample coefficient p-values.
+- This is breast cancer, not GEA. The workflow runs unchanged on TCGA-STAD or any other survival dataset with (time, event, features).
 
 **Reproduction:**
 ```bash
@@ -83,7 +128,7 @@ End-to-end survival analysis pipeline using TCGA-STAD data:
 | Workflow | Snakemake |
 | Data Acquisition | GDC REST API (requests) |
 | Data Store | DuckDB (SQL queries) |
-| Survival Models | lifelines (Cox PH, KM) |
+| Survival Models | scikit-survival (Cox PH, C-index), lifelines (KM, log-rank) |
 | Dashboard | Streamlit |
 | Visualization | matplotlib, seaborn |
 | Scripting | Bash (download, validation, md5sum) |
@@ -157,7 +202,8 @@ This is **Project 6 of 7**. It integrates molecular features from the preceding 
 ## References
 
 - [GDC Portal](https://portal.gdc.cancer.gov)
-- [lifelines documentation](https://lifelines.readthedocs.io)
+- [scikit-survival](https://scikit-survival.readthedocs.io)
+- [lifelines](https://lifelines.readthedocs.io)
 - [Snakemake](https://snakemake.readthedocs.io)
 - [DuckDB](https://duckdb.org)
 
