@@ -1,5 +1,7 @@
 # Project 6: GEA Survival Risk Stratifier
 
+[![CI](https://github.com/adamhoffman2155-hue/project-6-gea-survival-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/adamhoffman2155-hue/project-6-gea-survival-pipeline/actions/workflows/ci.yml)
+
 **Research question:** Which combination of molecular features best predicts chemotherapy response and survival in gastroesophageal adenocarcinoma?
 
 This is the sixth project in a [computational biology portfolio](https://github.com/adamhoffman2155-hue/bioinformatics-portfolio) — and the capstone. It answers the clinical question that started everything: can we integrate molecular features into a survival risk model that could inform treatment decisions? It combines MSI status, tumor mutational burden, DDR gene mutations, and immune subtype into a Cox proportional hazards model with an interactive Streamlit risk calculator.

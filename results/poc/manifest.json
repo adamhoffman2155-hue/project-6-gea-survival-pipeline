@@ -1,0 +1,39 @@
+{
+  "$schema": "https://github.com/adamhoffman2155-hue/bioinformatics-portfolio/blob/main/shared/poc-manifest.schema.json",
+  "project": "project-6-gea-survival-pipeline",
+  "poc_title": "Cox PH Survival Model on GBSG2 (cross-validated)",
+  "poc_version": "v2",
+  "dataset": {
+    "name": "GBSG2 (German Breast Cancer Study Group 2)",
+    "source": "Schumacher et al. 1994 — bundled with scikit-survival (sksurv.datasets.load_gbsg2)",
+    "substitute_for": "TCGA-STAD (cBioPortal unreachable)",
+    "n_patients": 686,
+    "n_events": 299,
+    "event_rate": 0.436,
+    "median_follow_up_days": 1084
+  },
+  "script": "scripts/poc/run_poc.py",
+  "generated_at": "2026-04-23",
+  "headline_metric": {
+    "name": "5-fold cross-validated C-index",
+    "value": 0.682,
+    "std": 0.051,
+    "note": "held-out; consistent with Schumacher 1994 benchmark of 0.69-0.71"
+  },
+  "secondary_metrics": [
+    {"name": "Training-fold C-index", "value": 0.692},
+    {
+      "name": "Top permutation-importance features",
+      "features": ["pnodes", "tgrade=III", "progrec"]
+    },
+    {"name": "horTh log-rank p", "value": 0.0034},
+    {"name": "tgrade log-rank p", "value": 1e-5, "note": "~0"}
+  ],
+  "headline_text": "5-fold CV C-index 0.682 ± 0.051 on GBSG2; top features: positive lymph nodes, tumor grade III, progesterone receptor.",
+  "artifacts": [
+    "results/poc/poc_summary.txt",
+    "results/poc/cox_summary.csv",
+    "results/poc/cv_cindex.csv",
+    "results/poc/perm_importance.csv"
+  ]
+}
