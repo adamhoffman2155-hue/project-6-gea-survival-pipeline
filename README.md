@@ -7,14 +7,24 @@ This is the sixth project in a [computational biology portfolio](https://github.
 ## Quick Start
 
 ```bash
-conda env create -f environment.yaml
-conda activate gea-survival
+git clone https://github.com/adamhoffman2155-hue/project-6-gea-survival-pipeline.git
+cd project-6-gea-survival-pipeline
 
-# Run the full pipeline
+# Choose one environment
+conda env create -f environment.yaml && conda activate gea-survival
+#   or
+pip install -r requirements.txt
+#   or
+docker build -f docker/Dockerfile.analysis -t gea-analysis docker/
+
+# Full pipeline
 snakemake --cores 4
 
 # Launch the interactive dashboard
 streamlit run dashboard/app.py
+
+# Quick proof-of-concept run on a public benchmark dataset
+python scripts/poc/run_poc.py
 ```
 
 ## Proof of Concept
@@ -28,7 +38,7 @@ A minimal end-to-end Cox PH survival run on a real, published clinical trial dat
 **What the POC tests:**
 - Cox Proportional Hazards fit on 9 features (age, tumor size, tumor grade, node count, progesterone/estrogen receptor, menopausal status, hormonal therapy)
 - Concordance index on training cohort
-- Bootstrap 95%% CIs on hazard ratios (N=200 resamples)
+- Bootstrap 95% CIs on hazard ratios (N=200 resamples)
 - Kaplan-Meier curves stratified by hormonal therapy + log-rank test
 
 **Headline numbers** (actual run output):
@@ -104,25 +114,13 @@ project-6-gea-survival-pipeline/
 ├── config/
 │   └── config.yaml
 ├── scripts/
-│   ├── bash/
-│   │   ├── download_tcga.sh
-│   │   └── setup_dirs.sh
-│   ├── python/
-│   │   ├── fetch_gdc_api.py
-│   │   ├── generate_synthetic_data.py
-│   │   ├── preprocess.py
-│   │   ├── build_feature_matrix.py
-│   │   ├── survival_model.py
-│   │   ├── figures.py
-│   │   └── query_cohort.py
+│   ├── bash/                      # download & directory-setup utilities
+│   ├── python/                    # GDC fetch, preprocess, features, modelling, figures
 │   └── poc/
 │       └── run_poc.py
 ├── dashboard/
-│   └── app.py
-├── tests/
-│   ├── test_preprocessing.py
-│   ├── test_features.py
-│   └── test_model.py
+│   └── app.py                     # Streamlit risk calculator
+├── tests/                         # pytest suite
 ├── docker/
 │   ├── Dockerfile.download
 │   ├── Dockerfile.analysis
