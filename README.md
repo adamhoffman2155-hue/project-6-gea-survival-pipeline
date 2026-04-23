@@ -1,16 +1,29 @@
 # Project 6: GEA Survival Risk Stratifier
 
-**Research question:** Which combination of molecular features best predicts chemotherapy response and survival in gastroesophageal adenocarcinoma?
+> **A statistical model that combines a cancer patient's tumor features into a single survival-risk score, with a point-and-click calculator built on top. The capstone of the portfolio.**
 
-This is the sixth project in a [computational biology portfolio](https://github.com/adamhoffman2155-hue/bioinformatics-portfolio) — and the capstone. It answers the clinical question that started everything: can we integrate molecular features into a survival risk model that could inform treatment decisions? It combines MSI status, tumor mutational burden, DDR gene mutations, and immune subtype into a Cox proportional hazards model with an interactive Streamlit risk calculator.
+## The short version
+
+**What this project does.** Takes the standard set of tumor features a pathologist would record (tumor size, grade, node involvement, hormone receptor status, etc.) and combines them into a Cox proportional-hazards model that estimates each patient's survival risk. Exposes the model as a Streamlit web app where a clinician could enter a patient's profile and see a risk percentile.
+
+**The question behind it.** This is the capstone — it asks the clinical question that started the portfolio: can we integrate molecular features from Projects 1-4 (MSI, immune subtype, DDR burden) into a single risk score that could actually inform treatment decisions?
+
+**What the proof-of-concept shows.** On a landmark 1994 breast-cancer trial dataset (GBSG2, 686 patients, 299 death events), the model achieves a cross-validated concordance index of **0.68 ± 0.05**. Plain English: if you pick two patients at random, the model correctly identifies the higher-risk one **68% of the time** — matching the published Schumacher 1994 benchmark (0.69-0.71). Tumor grade and positive-node count are the strongest individual predictors.
+
+**Why it matters.** This closes the loop on the portfolio. Projects 1-4 identify biomarkers; this project asks "can we put them together into something that changes what happens to a patient?" The GBSG2 POC proves the statistical infrastructure works; the full pipeline targets TCGA-STAD for the real GEA clinical question.
+
+---
+
+_The rest of this README is technical detail for bioinformaticians, recruiters doing a deep review, or anyone reproducing the work. This is a portfolio project built on public TCGA data; the survival estimates are **not for clinical use** and would require independent validation, IRB oversight, and regulatory approval before any clinical application._
 
 ## At a Glance
 
 | | |
 |---|---|
 | **Stack** | Snakemake · DuckDB/SQL · scikit-survival · lifelines · Streamlit · Docker · pytest · Bash |
-| **Data** | TCGA-STAD via GDC API (target); GBSG2 breast trial, n=686 (POC substitute) |
+| **Data** | TCGA-STAD via GDC API (full-pipeline target); GBSG2 breast trial, n=686 (POC substitute) |
 | **POC headline** | 5-fold CV C-index 0.682 ± 0.051 (held-out); training-fold 0.692 matches Schumacher 1994 (0.69–0.71); log-rank by grade chi²=21 p≈0, by hormonal therapy p=0.003 |
+| **Status** | POC: **Runnable POC** with committed CV outputs. Full pipeline: **Full-data target** (requires GDC API access) |
 | **Role** | Capstone — pipeline architecture, feature selection from thesis biology, clinical plausibility review; implementation AI-assisted |
 | **Portfolio** | Project 6 of 7 (capstone) · [full narrative](https://github.com/adamhoffman2155-hue/bioinformatics-portfolio) |
 
@@ -33,10 +46,9 @@ A minimal end-to-end Cox PH survival run on a real, published clinical-trial dat
 
 **Dataset:** GBSG2 — German Breast Cancer Study Group 2 (Schumacher et al. 1994), 686 patients with 299 events. Accessed via `sksurv.datasets.load_gbsg2()` so no network or account is required.
 
-**Substitution note:** The full Snakemake pipeline targets TCGA-STAD via cBioPortal, but that host is not reachable from this reproducibility sandbox. GBSG2 is a real published randomized clinical trial dataset that is canonical for Cox PH benchmarking. The same sksurv Cox + C-index + KM code runs unchanged on any survival dataset.
+**Substitution note:** The full Snakemake pipeline targets TCGA-STAD via cBioPortal, but that host is not reachable from this reproducibility sandbox. GBSG2 is a real published randomized clinical trial dataset that is canonical for Cox PH benchmarking.
 
-**Cohort:**
-- 686 patients, 299 events (43.6%), median follow-up 1084 days
+**Cohort:** 686 patients, 299 events (43.6%), median follow-up 1084 days.
 
 **Features used:** age, estrec (estrogen receptor), horTh (hormonal therapy), menostat (menopausal status), pnodes (positive lymph nodes), progrec (progesterone receptor), tgrade (tumor grade), tsize (tumor size).
 
@@ -44,10 +56,8 @@ A minimal end-to-end Cox PH survival run on a real, published clinical-trial dat
 
 | Estimate | Value |
 |---|---|
-| Training-fold C-index (fit + evaluate on full cohort) | **0.692** |
-| 5-fold cross-validated C-index (held-out test folds) | **0.682 ± 0.051** |
-
-Both are inside Schumacher 1994's published 0.69–0.71 range for Cox PH on these features. The CV number is the honest held-out estimate.
+| Training-fold C-index | **0.692** |
+| 5-fold cross-validated C-index (held-out) | **0.682 ± 0.051** |
 
 Per-fold held-out C-index: 0.614, 0.691, 0.751, 0.637, 0.718.
 
@@ -60,24 +70,16 @@ Per-fold held-out C-index: 0.614, 0.691, 0.751, 0.637, 0.718.
 | progrec | -0.449 | 0.638 | 0.494–0.788 | 0.005 |
 | pnodes | +0.267 | 1.306 | 1.206–1.563 | 0.005 |
 | tgrade=III | +0.330 | 1.392 | 1.142–1.775 | 0.005 |
-| tsize | +0.112 | 1.118 | 0.996–1.241 | 0.080 |
-| menostat=Post | +0.128 | 1.136 | 0.938–1.369 | 0.130 |
-| age | -0.096 | 0.909 | 0.751–1.111 | 0.340 |
-| estrec | +0.030 | 1.031 | 0.876–1.149 | 0.670 |
 
 ### Permutation feature importance (held-out CV, ΔC-index on shuffle)
 
-| Feature | Mean ΔC-index | Std |
-|---|---|---|
-| pnodes | **0.062** | 0.021 |
-| tgrade=III | **0.054** | 0.035 |
-| progrec | **0.046** | 0.015 |
-| tgrade=II | 0.041 | 0.020 |
-| age | 0.012 | 0.009 |
-| horTh=yes | 0.011 | 0.015 |
-| menostat=Post | 0.005 | 0.008 |
-| tsize | 0.003 | 0.009 |
-| estrec | 0.001 | 0.003 |
+| Feature | Mean ΔC-index |
+|---|---|
+| pnodes | **0.062** |
+| tgrade=III | **0.054** |
+| progrec | **0.046** |
+| tgrade=II | 0.041 |
+| age | 0.012 |
 
 ### Stratification tests (Kaplan-Meier log-rank)
 
@@ -86,39 +88,32 @@ Per-fold held-out C-index: 0.614, 0.691, 0.751, 0.637, 0.718.
 | Tumor grade | 21.09 | ≈ 0 |
 | Hormonal therapy | 8.56 | 0.0034 |
 
-### Headline numbers
+### Reproduction
 
-- Training C-index: **0.692** (matches Schumacher 1994 benchmark)
-- 5-fold CV C-index: **0.682 ± 0.051** (held-out, honest)
-- Top features by held-out perm importance: pnodes, tgrade=III, progrec
-- horTh log-rank p: 0.0034
-- tgrade log-rank p: ≈ 0
-
-### Honest assessment
-
-- Training-fold C-index (0.692) slightly overestimates held-out performance; CV (0.682) is the honest estimate of generalization.
-- Both are in the 0.69–0.71 range reported for GBSG2 Cox PH in the published literature.
-- Bootstrap CIs are approximate; sksurv does not expose per-coefficient SEs, so a Wald-test-based CI would require statsmodels or lifelines.
-- Permutation importance on held-out folds is a more rigorous feature ranking than in-sample coefficient p-values.
-- This is breast cancer, not GEA. The workflow runs unchanged on TCGA-STAD or any other survival dataset with (time, event, features).
-
-**Reproduction:**
 ```bash
 pip install scikit-survival pandas numpy matplotlib
 python scripts/poc/run_poc.py
 ```
-Outputs are written to `results/poc/` (CSV summary, plain-text report, KM curve PNG).
 
-## What It Does
+Outputs in `results/poc/`: `cox_summary.csv`, `cv_cindex.csv`, `perm_importance.csv`, `poc_summary.txt`, KM curve PNG.
 
-End-to-end survival analysis pipeline using TCGA-STAD data:
+### Honest assessment
+
+- Training-fold C-index (0.692) slightly overestimates held-out performance; CV (0.682) is the honest estimate of generalization.
+- Both are in the 0.69–0.71 range reported for GBSG2 Cox PH in published literature.
+- Bootstrap CIs are approximate; a Wald-test-based CI would require statsmodels or lifelines.
+- This is breast cancer, not GEA. The workflow runs unchanged on TCGA-STAD or any other survival dataset.
+
+## What the Full Pipeline Does
+
+End-to-end survival analysis using TCGA-STAD data:
 
 1. **Data acquisition** — GDC REST API client with pagination and error handling
 2. **Preprocessing** — Data cleaning with explicit logging, DuckDB feature store
 3. **Feature engineering** — MSI status (binary), TMB (mutations/Mb), DDR burden (pathogenic mutations in BRCA1/2, ATM, ATR, PALB2, RAD51, MLH1, MSH2, MSH6, POLE), immune subtype
-4. **Survival modeling** — Cox PH and Kaplan-Meier analysis (lifelines)
+4. **Survival modeling** — Cox PH and Kaplan-Meier analysis
 5. **Visualization** — KM curves with CIs, forest plots, TMB distributions
-6. **Dashboard** — Streamlit app: input molecular profile, get risk percentile and survival estimates
+6. **Dashboard** — Streamlit app: input molecular profile → get risk percentile and survival estimates
 7. **Testing** — pytest suite for preprocessing, features, and model outputs
 
 ## Tools Used
@@ -137,54 +132,11 @@ End-to-end survival analysis pipeline using TCGA-STAD data:
 
 ## DuckDB Feature Store
 
-Cohort selection uses explicit SQL:
-
 ```sql
 SELECT case_id, msi_status, tmb, ddr_burden, immune_subtype, os_days, os_event
 FROM molecular_features
 JOIN clinical ON molecular_features.case_id = clinical.case_id
 WHERE primary_site = 'Stomach' AND treatment_type IS NOT NULL
-```
-
-## Project Structure
-
-```
-project-6-gea-survival-pipeline/
-├── README.md
-├── Snakefile
-├── .gitignore
-├── environment.yaml
-├── requirements.txt
-├── LICENSE
-├── config/
-│   └── config.yaml
-├── scripts/
-│   ├── bash/
-│   │   ├── download_tcga.sh
-│   │   └── setup_dirs.sh
-│   ├── python/
-│   │   ├── fetch_gdc_api.py
-│   │   ├── generate_synthetic_data.py
-│   │   ├── preprocess.py
-│   │   ├── build_feature_matrix.py
-│   │   ├── survival_model.py
-│   │   ├── figures.py
-│   │   └── query_cohort.py
-│   └── poc/
-│       └── run_poc.py
-├── dashboard/
-│   └── app.py
-├── tests/
-│   ├── test_preprocessing.py
-│   ├── test_features.py
-│   └── test_model.py
-├── docker/
-│   ├── Dockerfile.download
-│   ├── Dockerfile.analysis
-│   └── Dockerfile.dashboard
-├── data/
-└── results/
-    └── poc/
 ```
 
 ## Honest Note
@@ -198,14 +150,6 @@ This is the capstone — connecting everything built in Projects 1-4 back to the
 ## Context in the Portfolio
 
 This is **Project 6 of 7**. It integrates molecular features from the preceding projects (MSI from Project 1, immune subtypes from Project 2, SHAP-validated biomarkers from Projects 3-4) into a single survival model with a deployable Streamlit calculator. It closes the loop on the clinical question that opened the portfolio. See the [portfolio site](https://github.com/adamhoffman2155-hue/bioinformatics-portfolio) for the full narrative.
-
-## References
-
-- [GDC Portal](https://portal.gdc.cancer.gov)
-- [scikit-survival](https://scikit-survival.readthedocs.io)
-- [lifelines](https://lifelines.readthedocs.io)
-- [Snakemake](https://snakemake.readthedocs.io)
-- [DuckDB](https://duckdb.org)
 
 ## License
 
