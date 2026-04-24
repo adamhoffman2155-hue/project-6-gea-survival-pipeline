@@ -13,7 +13,7 @@
     "median_follow_up_days": 1084
   },
   "script": "scripts/poc/run_poc.py",
-  "generated_at": "2026-04-23",
+  "generated_at": "2026-04-24",
   "headline_metric": {
     "name": "5-fold cross-validated C-index",
     "value": 0.682,
