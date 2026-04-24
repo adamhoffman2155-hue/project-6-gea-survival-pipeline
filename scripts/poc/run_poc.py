@@ -118,7 +118,7 @@ def main():
 
     # 3. Permutation feature importance
     perm_importances = {f: [] for f in feature_names}
-    for fold_idx, (tr, te) in enumerate(skf.split(X_std, y["cens"])):
+    for _fold_idx, (tr, te) in enumerate(skf.split(X_std, y["cens"])):
         cox_cv = CoxPHSurvivalAnalysis(alpha=0.01).fit(X_std.iloc[tr], y[tr])
         baseline_c = concordance_index_censored(
             y[te]["cens"], y[te]["time"], cox_cv.predict(X_std.iloc[te])
