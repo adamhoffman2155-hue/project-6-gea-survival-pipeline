@@ -5,7 +5,7 @@
   "poc_version": "v2",
   "dataset": {
     "name": "GBSG2 (German Breast Cancer Study Group 2)",
-    "source": "Schumacher et al. 1994 — bundled with scikit-survival (sksurv.datasets.load_gbsg2)",
+    "source": "Schumacher et al. 1994 \u2014 bundled with scikit-survival (sksurv.datasets.load_gbsg2)",
     "substitute_for": "TCGA-STAD (cBioPortal unreachable)",
     "n_patients": 686,
     "n_events": 299,
@@ -17,19 +17,33 @@
   "headline_metric": {
     "name": "5-fold cross-validated C-index",
     "value": 0.682,
-    "std": 0.051,
+    "std": 0.057,
     "note": "held-out; consistent with Schumacher 1994 benchmark of 0.69-0.71"
   },
   "secondary_metrics": [
-    {"name": "Training-fold C-index", "value": 0.692},
+    {
+      "name": "Training-fold C-index",
+      "value": 0.692
+    },
     {
       "name": "Top permutation-importance features",
-      "features": ["pnodes", "tgrade=III", "progrec"]
+      "features": [
+        "pnodes",
+        "tgrade=III",
+        "progrec"
+      ]
     },
-    {"name": "horTh log-rank p", "value": 0.0034},
-    {"name": "tgrade log-rank p", "value": 1e-5, "note": "~0"}
+    {
+      "name": "horTh log-rank p",
+      "value": 0.0034
+    },
+    {
+      "name": "tgrade log-rank p",
+      "value": 1e-05,
+      "note": "~0"
+    }
   ],
-  "headline_text": "5-fold CV C-index 0.682 ± 0.051 on GBSG2; top features: positive lymph nodes, tumor grade III, progesterone receptor.",
+  "headline_text": "5-fold CV C-index 0.682 \u00b1 0.057 on GBSG2; top features: pnodes, tgrade=III, progrec.",
   "artifacts": [
     "results/poc/poc_summary.txt",
     "results/poc/cox_summary.csv",

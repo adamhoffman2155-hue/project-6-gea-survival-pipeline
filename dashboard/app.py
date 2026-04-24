@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 import pickle
 import logging
+import matplotlib.pyplot as plt
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -189,6 +190,35 @@ if st.sidebar.button("\U0001f52e Calculate Risk", key="predict_btn"):
                 label=f"Survival at {label}",
                 value=(f"{value:.1%}" if value is not None else "N/A"),
             )
+
+    # Plot: patient's predicted survival curve + cohort baseline
+    try:
+        surv_df = cox_model.predict_survival_function(input_data)
+        cohort_baseline = cox_model.baseline_survival_
+        fig, ax = plt.subplots(figsize=(8, 4.5))
+        ax.step(
+            surv_df.index.values, surv_df.iloc[:, 0].values,
+            where="post", color="#0084D1", linewidth=2,
+            label="This patient (Cox predicted)",
+        )
+        ax.step(
+            cohort_baseline.index.values, cohort_baseline.iloc[:, 0].values,
+            where="post", color="#888888", linewidth=1.5, linestyle="--",
+            label="Cohort baseline (Cox)",
+        )
+        for tp, label in zip(timepoints, timepoint_labels):
+            ax.axvline(tp, color="#cccccc", linewidth=0.5, alpha=0.6)
+        ax.set_xlabel("Days since diagnosis")
+        ax.set_ylabel("Survival probability")
+        ax.set_ylim(0, 1.02)
+        ax.set_xlim(left=0)
+        ax.legend(loc="lower left", frameon=False)
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+        st.pyplot(fig)
+        plt.close(fig)
+    except Exception as exc:  # noqa: BLE001
+        st.info(f"Could not plot survival curve: {exc}")
 
     # Feature importance
     st.subheader("\U0001f50d Feature Contributions to Risk Score")

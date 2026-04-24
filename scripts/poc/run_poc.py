@@ -147,6 +147,15 @@ def main():
 
     print(f"\nLog-rank by horTh:  chi2={chi2_h:.2f}, p={p_h:.4f}")
     print(f"Log-rank by tgrade: chi2={chi2_g:.2f}, p={p_g:.4f}")
+
+    # Regenerate results/poc/manifest.json so the portfolio site's
+    # headline numbers stay in sync with the freshly-written CSVs.
+    print("\nRebuilding manifest.json")
+    import subprocess as _sp, sys as _sys
+    _sp.run(
+        [_sys.executable, str(Path(__file__).with_name("build_manifest.py"))],
+        check=True,
+    )
     print("Done.")
 
 
