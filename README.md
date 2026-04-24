@@ -1,5 +1,10 @@
 # Project 6: GEA Survival Risk Stratifier
 
+![CI](https://github.com/adamhoffman2155-hue/project-6-gea-survival-pipeline/actions/workflows/ci.yml/badge.svg)
+![Python](https://img.shields.io/badge/python-3.11-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Repro](https://img.shields.io/badge/FAIR_DOME_CURE-13%2F14_%7C_6%2F7_%7C_4%2F4-brightgreen)
+
 **Research question:** Which combination of molecular features best predicts chemotherapy response and survival in gastroesophageal adenocarcinoma?
 
 This is the sixth project in a [computational biology portfolio](https://github.com/adamhoffman2155-hue/bioinformatics-portfolio) — and the capstone. It answers the clinical question that started everything: can we integrate molecular features into a survival risk model that could inform treatment decisions? It combines MSI status, tumor mutational burden, DDR gene mutations, and immune subtype into a Cox proportional hazards model with an interactive Streamlit risk calculator.
@@ -140,7 +145,32 @@ This is the capstone — connecting everything built in Projects 1-4 back to the
 
 ## Context in the Portfolio
 
-This is **Project 6 of 7**. It integrates molecular features from the preceding projects (MSI from Project 1, immune subtypes from Project 2, SHAP-validated biomarkers from Projects 3-4) into a single survival model with a deployable Streamlit calculator. It closes the loop on the clinical question that opened the portfolio. See the [portfolio site](https://github.com/adamhoffman2155-hue/bioinformatics-portfolio) for the full narrative.
+This is **Project 6 of 7** — the **capstone**. It integrates molecular features conceptually sourced from the preceding projects (MSI from Project 1, immune subtypes from Project 2, pharmacogenomics context from Project 3, DDR biomarkers with permutation/SHAP ranking from Project 4) into a single survival model with a deployable Streamlit calculator. It closes the loop on the clinical question that opened the portfolio. See the [portfolio site](https://github.com/adamhoffman2155-hue/bioinformatics-portfolio) for the full narrative.
+
+### Cross-project data flow
+
+```
+Project 1 (RNA-seq)          ──┐
+Project 2 (scRNA-seq TME)    ──┤
+                               ├──▶  Project 6 (this one — Cox PH + Streamlit)
+Project 3 (drug-response ML) ──┤
+Project 4 (DDR biomarkers)   ──┘
+```
+
+- **Upstream** — consumes (conceptually) transcriptomic DEGs, TME immune-subtype labels, drug-response context, and a DDR biomarker panel (MSI, HRD burden, DDR mutation counts).
+- **Downstream** — exposes the fitted model via a Streamlit risk calculator; this is the end-user-facing tip of the portfolio.
+
+## Benchmarks
+
+| Benchmark | Output | Summary |
+| --- | --- | --- |
+| Cox PH vs Random Survival Forest vs DeepSurv | [`results/benchmark/survival_leaderboard.md`](results/benchmark/survival_leaderboard.md) | On GBSG2 the POC's Cox PH (C-index 0.682 ± 0.051) is matched by Random Survival Forest (0.683 ± 0.023, tighter variance); DeepSurv MLP is optional. |
+
+Rebuild with `python scripts/python/benchmark_survival_models.py`.
+
+## Reproducibility
+
+See [`REPRODUCIBILITY.md`](REPRODUCIBILITY.md) for the FAIR-BioRS / DOME / CURE self-scorecard (13/14 · 6/7 · 4/4).
 
 ## References
 
