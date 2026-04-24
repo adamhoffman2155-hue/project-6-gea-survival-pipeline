@@ -6,24 +6,31 @@ Constructs the feature matrix for survival modeling by joining
 molecular and clinical data. DDR gene list is sourced from config/config.yaml.
 """
 
-import pandas as pd
-import duckdb
 import logging
-import os
 from pathlib import Path
-from typing import List, Optional
+
+import duckdb
+import pandas as pd
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 # Fallback DDR gene set used only if config.yaml is missing.
 _DEFAULT_DDR_GENES = [
-    "BRCA1", "BRCA2", "ATM", "ATR", "PALB2", "RAD51",
-    "MLH1", "MSH2", "MSH6", "POLE",
+    "BRCA1",
+    "BRCA2",
+    "ATM",
+    "ATR",
+    "PALB2",
+    "RAD51",
+    "MLH1",
+    "MSH2",
+    "MSH6",
+    "POLE",
 ]
 
 
-def load_ddr_genes(config_path: Optional[str] = None) -> List[str]:
+def load_ddr_genes(config_path: str | None = None) -> list[str]:
     """Load the DDR gene list from config/config.yaml.
 
     Falls back to a sensible default if the file or key is missing, and
@@ -45,7 +52,7 @@ def load_ddr_genes(config_path: Optional[str] = None) -> List[str]:
         logger.warning("pyyaml not installed; using default DDR gene list")
         return list(_DEFAULT_DDR_GENES)
 
-    with open(config_path, "r") as fh:
+    with open(config_path) as fh:
         cfg = yaml.safe_load(fh) or {}
 
     genes = cfg.get("ddr_genes")
@@ -61,7 +68,7 @@ def build_feature_matrix(
     db_path: str,
     mutations_csv: str,
     output_csv: str = "data/processed/feature_matrix.csv",
-    config_path: Optional[str] = None,
+    config_path: str | None = None,
 ) -> pd.DataFrame:
     """Build multi-omic feature matrix (MSI, TMB, DDR burden, immune subtype)."""
     ddr_genes = load_ddr_genes(config_path)
@@ -83,12 +90,14 @@ def build_feature_matrix(
         ddr_mutations = case_mutations[case_mutations["gene_symbol"].isin(ddr_genes)]
         ddr_burden = len(ddr_mutations[ddr_mutations["is_pathogenic"] == 1])
 
-        tmb_data.append({
-            "case_id": case_id,
-            "tmb": tmb,
-            "ddr_burden": ddr_burden,
-            "n_mutations": n_mutations,
-        })
+        tmb_data.append(
+            {
+                "case_id": case_id,
+                "tmb": tmb,
+                "ddr_burden": ddr_burden,
+                "n_mutations": n_mutations,
+            }
+        )
 
     df_tmb = pd.DataFrame(tmb_data)
     logger.info("Computed TMB and DDR burden for %d cases", len(df_tmb))

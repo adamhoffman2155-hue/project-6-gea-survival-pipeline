@@ -9,10 +9,11 @@ exist at insert time.
 """
 
 import json
-import pandas as pd
-import duckdb
 import logging
 from pathlib import Path
+
+import duckdb
+import pandas as pd
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ def preprocess_clinical_data(clinical_json: str) -> pd.DataFrame:
     """Load and preprocess clinical data from JSON."""
     logger.info("Loading clinical data from %s...", clinical_json)
 
-    with open(clinical_json, "r") as f:
+    with open(clinical_json) as f:
         cases = json.load(f)
 
     logger.info("Loaded %d cases", len(cases))
@@ -50,21 +51,25 @@ def preprocess_clinical_data(clinical_json: str) -> pd.DataFrame:
 
         # Quality filters
         if os_days < 30:
-            logger.warning("Case %s has insufficient follow-up (%s days), skipping", case_id, os_days)
+            logger.warning(
+                "Case %s has insufficient follow-up (%s days), skipping", case_id, os_days
+            )
             continue
         if age_at_diagnosis is None or age_at_diagnosis < 0:
             logger.warning("Case %s has invalid age, skipping", case_id)
             continue
 
-        records.append({
-            "case_id": case_id,
-            "age_at_diagnosis": age_at_diagnosis,
-            "tumor_stage": tumor_stage,
-            "treatment_received": treatment_received,
-            "treatment_type": treatment_type,
-            "os_days": os_days,
-            "os_event": os_event,
-        })
+        records.append(
+            {
+                "case_id": case_id,
+                "age_at_diagnosis": age_at_diagnosis,
+                "tumor_stage": tumor_stage,
+                "treatment_received": treatment_received,
+                "treatment_type": treatment_type,
+                "os_days": os_days,
+                "os_event": os_event,
+            }
+        )
 
     df_clinical = pd.DataFrame(records)
     logger.info(

@@ -7,11 +7,12 @@ Survival curves come from the actual fitted model's baseline_survival_function_,
 not hardcoded numbers.
 """
 
-import streamlit as st
-import pandas as pd
-import numpy as np
-import pickle
 import logging
+import pickle
+
+import numpy as np
+import pandas as pd
+import streamlit as st
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -39,7 +40,9 @@ st.markdown(
 )
 
 st.title("\U0001f52c Gastroesophageal Adenocarcinoma Survival Risk Stratifier")
-st.markdown("**Predict chemotherapy response and survival in gastroesophageal adenocarcinoma patients**")
+st.markdown(
+    "**Predict chemotherapy response and survival in gastroesophageal adenocarcinoma patients**"
+)
 
 st.warning(
     "\u26a0\ufe0f **DISCLAIMER**: This tool is for educational and research purposes only. "
@@ -96,28 +99,39 @@ msi_status = st.sidebar.selectbox(
 
 tmb = st.sidebar.slider(
     "Tumor Mutational Burden (mutations per megabase)",
-    min_value=0.0, max_value=100.0, value=5.0, step=0.5,
+    min_value=0.0,
+    max_value=100.0,
+    value=5.0,
+    step=0.5,
     help="Total number of somatic mutations per megabase of sequenced genome",
 )
 
 ddr_burden = st.sidebar.slider(
     "DNA Damage Repair Gene Mutation Count",
-    min_value=0, max_value=10, value=2,
+    min_value=0,
+    max_value=10,
+    value=2,
     help="Count of pathogenic mutations in DNA Damage Repair genes",
 )
 
 immune_subtype = st.sidebar.selectbox(
     "Tumor Immune Subtype",
     options=[
-        "C1: Wound Healing", "C2: IFN-gamma Dominant", "C3: Inflammatory",
-        "C4: Lymphoid Depleted", "C5: Immunologically Quiet",
+        "C1: Wound Healing",
+        "C2: IFN-gamma Dominant",
+        "C3: Inflammatory",
+        "C4: Lymphoid Depleted",
+        "C5: Immunologically Quiet",
     ],
     help="The Cancer Genome Atlas immune classification",
 )
 
 age = st.sidebar.slider(
     "Patient Age at Diagnosis (years)",
-    min_value=30, max_value=90, value=65, step=1,
+    min_value=30,
+    max_value=90,
+    value=65,
+    step=1,
     help="Age in years at time of cancer diagnosis",
 )
 
@@ -139,13 +153,15 @@ if st.sidebar.button("\U0001f52e Calculate Risk", key="predict_btn"):
     age_mean = feature_matrix["age_at_diagnosis"].mean()
     age_std = feature_matrix["age_at_diagnosis"].std()
 
-    input_data = pd.DataFrame({
-        "msi_status": [msi_binary],
-        "tmb": [(tmb - tmb_mean) / tmb_std],
-        "ddr_burden": [(ddr_burden - ddr_mean) / ddr_std],
-        "immune_subtype": [immune_code],
-        "age": [(age - age_mean) / age_std],
-    })
+    input_data = pd.DataFrame(
+        {
+            "msi_status": [msi_binary],
+            "tmb": [(tmb - tmb_mean) / tmb_std],
+            "ddr_burden": [(ddr_burden - ddr_mean) / ddr_std],
+            "immune_subtype": [immune_code],
+            "age": [(age - age_mean) / age_std],
+        }
+    )
 
     risk_score = cox_model.predict_partial_hazard(input_data).values[0]
     risk_percentile = (risk_scores["risk_score"] < risk_score).sum() / len(risk_scores) * 100
@@ -154,10 +170,15 @@ if st.sidebar.button("\U0001f52e Calculate Risk", key="predict_btn"):
     with col1:
         st.metric("Risk Score", f"{risk_score:.2f}", "Higher values indicate worse prognosis")
     with col2:
-        st.metric("Risk Percentile", f"{risk_percentile:.1f}%", "Relative to The Cancer Genome Atlas cohort")
+        st.metric(
+            "Risk Percentile",
+            f"{risk_percentile:.1f}%",
+            "Relative to The Cancer Genome Atlas cohort",
+        )
     with col3:
         risk_category = (
-            "High Risk" if risk_percentile > 66
+            "High Risk"
+            if risk_percentile > 66
             else ("Intermediate Risk" if risk_percentile > 33 else "Low Risk")
         )
         st.metric("Risk Stratification Category", risk_category)
@@ -182,7 +203,7 @@ if st.sidebar.button("\U0001f52e Calculate Risk", key="predict_btn"):
         survival_probs = {t: None for t in timepoints}
 
     col1, col2, col3 = st.columns(3)
-    for i, (tp, label) in enumerate(zip(timepoints, timepoint_labels)):
+    for i, (tp, label) in enumerate(zip(timepoints, timepoint_labels, strict=False)):
         with [col1, col2, col3][i]:
             value = survival_probs[tp]
             st.metric(
@@ -194,12 +215,14 @@ if st.sidebar.button("\U0001f52e Calculate Risk", key="predict_btn"):
     st.subheader("\U0001f50d Feature Contributions to Risk Score")
     cox_summary = cox_model.summary.copy()
     cox_summary["exp_coef"] = np.exp(cox_summary["coef"])
-    feature_importance = pd.DataFrame({
-        "Feature": cox_summary.index,
-        "Coefficient": cox_summary["coef"].values,
-        "Hazard Ratio": cox_summary["exp_coef"].values,
-        "p-value": cox_summary["p"].values,
-    })
+    feature_importance = pd.DataFrame(
+        {
+            "Feature": cox_summary.index,
+            "Coefficient": cox_summary["coef"].values,
+            "Hazard Ratio": cox_summary["exp_coef"].values,
+            "p-value": cox_summary["p"].values,
+        }
+    )
     st.dataframe(feature_importance.set_index("Feature"), use_container_width=True)
     st.caption("Hazard Ratio > 1 indicates increased risk; < 1 indicates decreased risk")
 
@@ -216,8 +239,12 @@ if st.sidebar.button("\U0001f52e Calculate Risk", key="predict_btn"):
     with col2:
         st.write("**Cohort Statistics:**")
         st.write(f"- Total Cases: {len(feature_matrix)}")
-        st.write(f"- Median Tumor Mutational Burden: {feature_matrix['tmb'].median():.1f} mutations per megabase")
-        st.write(f"- Median DNA Damage Repair Gene Mutations: {feature_matrix['ddr_burden'].median():.0f}")
+        st.write(
+            f"- Median Tumor Mutational Burden: {feature_matrix['tmb'].median():.1f} mutations per megabase"
+        )
+        st.write(
+            f"- Median DNA Damage Repair Gene Mutations: {feature_matrix['ddr_burden'].median():.0f}"
+        )
         st.write(
             f"- Microsatellite Instability High Prevalence: "
             f"{(feature_matrix['msi_binary'] == 1).sum() / len(feature_matrix):.1%}"

@@ -25,11 +25,11 @@ def get_connection(db_path: str) -> duckdb.DuckDBPyConnection:
 
 def query_full_cohort(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     """Select the full analysis cohort with all molecular features.
-    
+
     Returns patients with stomach primary site and documented treatment.
     """
     query = """
-    SELECT 
+    SELECT
         m.case_id,
         m.msi_status,
         m.tmb,
@@ -55,7 +55,7 @@ def query_full_cohort(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
 def query_msi_summary(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     """Summary statistics stratified by MSI status."""
     query = """
-    SELECT 
+    SELECT
         m.msi_status,
         COUNT(*) AS n_patients,
         ROUND(AVG(m.tmb), 2) AS mean_tmb,
@@ -77,13 +77,13 @@ def query_msi_summary(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
 
 def query_ddr_high_patients(con: duckdb.DuckDBPyConnection, threshold: int = 2) -> pd.DataFrame:
     """Identify patients with high DDR mutation burden.
-    
+
     Args:
         con: DuckDB connection
         threshold: Minimum DDR mutations to classify as 'high burden'
     """
     query = f"""
-    SELECT 
+    SELECT
         m.case_id,
         m.msi_status,
         m.tmb,
@@ -105,7 +105,7 @@ def query_ddr_high_patients(con: duckdb.DuckDBPyConnection, threshold: int = 2) 
 def query_immune_subtype_survival(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     """Median survival by immune subtype."""
     query = """
-    SELECT 
+    SELECT
         m.immune_subtype,
         COUNT(*) AS n_patients,
         ROUND(MEDIAN(c.os_days), 0) AS median_os_days,
@@ -127,7 +127,7 @@ def query_immune_subtype_survival(con: duckdb.DuckDBPyConnection) -> pd.DataFram
 def query_feature_correlations(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     """Pairwise feature summary for correlation analysis."""
     query = """
-    SELECT 
+    SELECT
         ROUND(CORR(m.tmb, m.ddr_burden), 3) AS tmb_ddr_corr,
         ROUND(CORR(m.tmb, c.os_days), 3) AS tmb_os_corr,
         ROUND(CORR(m.ddr_burden, c.os_days), 3) AS ddr_os_corr,
@@ -144,9 +144,15 @@ def query_feature_correlations(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
 
 def main():
     parser = argparse.ArgumentParser(description="Query the GEA survival feature store")
-    parser.add_argument("--db", default="data/processed/features.duckdb", help="Path to DuckDB database")
-    parser.add_argument("--query", choices=["cohort", "msi", "ddr", "immune", "correlations", "all"],
-                        default="all", help="Which query to run")
+    parser.add_argument(
+        "--db", default="data/processed/features.duckdb", help="Path to DuckDB database"
+    )
+    parser.add_argument(
+        "--query",
+        choices=["cohort", "msi", "ddr", "immune", "correlations", "all"],
+        default="all",
+        help="Which query to run",
+    )
     parser.add_argument("--output", default="results", help="Output directory for CSV results")
     parser.add_argument("--ddr-threshold", type=int, default=2, help="DDR burden threshold")
     args = parser.parse_args()
@@ -157,7 +163,9 @@ def main():
     try:
         con = get_connection(args.db)
     except FileNotFoundError:
-        logger.error(f"Database not found at {args.db}. Run the pipeline first: snakemake --cores 4")
+        logger.error(
+            f"Database not found at {args.db}. Run the pipeline first: snakemake --cores 4"
+        )
         sys.exit(1)
 
     queries = {
@@ -172,7 +180,7 @@ def main():
 
     for name in to_run:
         filename, func = queries[name]
-        logger.info(f"\n{'='*50}\nRunning query: {name}\n{'='*50}")
+        logger.info(f"\n{'=' * 50}\nRunning query: {name}\n{'=' * 50}")
         df = func()
         out_path = os.path.join(args.output, filename)
         df.to_csv(out_path, index=False)
