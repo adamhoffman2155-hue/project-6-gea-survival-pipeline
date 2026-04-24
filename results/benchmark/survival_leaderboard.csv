@@ -1,0 +1,3 @@
+model,cv_cindex_mean,cv_cindex_std
+CoxPH (sksurv),0.6822046782534865,0.050736228145467493
+RandomSurvivalForest (sksurv),0.6829561277131052,0.02256684734963181
