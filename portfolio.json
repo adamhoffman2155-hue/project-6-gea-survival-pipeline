@@ -1,0 +1,45 @@
+{
+  "id": 6,
+  "title": "GEA Survival Risk Stratifier",
+  "question": "Which combination of molecular features best predicts chemotherapy response and survival in GEA?",
+  "stack": ["Snakemake", "DuckDB / SQL", "scikit-survival", "lifelines", "Streamlit", "Docker", "pytest", "Bash"],
+  "dataset_target": "TCGA-STAD via GDC API (clinical + mutations + MSI + immune subtype)",
+  "dataset_actual_poc": "GBSG2 — German Breast Cancer Study Group 2 (Schumacher 1994), n=686, 299 events, via sksurv.datasets.load_gbsg2",
+  "substitution_reason": "TCGA-STAD via cBioPortal not reachable from sandbox; GBSG2 is canonical published RCT for Cox PH benchmarking (Schumacher 1994 reports C-index 0.69–0.71 on Cox PH)",
+  "status": "Runnable POC; full TCGA-STAD pipeline is a target that needs GDC API access",
+  "reproduce_command": "pip install scikit-survival pandas numpy matplotlib && python scripts/poc/run_poc.py",
+  "outputs": [
+    "results/poc/cox_summary.csv",
+    "results/poc/cv_cindex.csv",
+    "results/poc/perm_importance.csv",
+    "results/poc/poc_summary.txt"
+  ],
+  "headline_result": {
+    "n_patients": 686,
+    "n_events": 299,
+    "median_followup_days": 1084,
+    "training_fold_c_index": 0.692,
+    "cv_5fold_c_index": "0.682 ± 0.051",
+    "cv_per_fold": [0.614, 0.691, 0.751, 0.637, 0.718],
+    "schumacher_1994_benchmark": "0.69–0.71 (Cox PH on these features)",
+    "top_perm_importance": ["pnodes (0.062)", "tgrade=III (0.054)", "progrec (0.046)"],
+    "top_cox_coefficients": [
+      "horTh=yes: HR 0.847 (0.746–0.944), p_bootstrap=0.005 (protective)",
+      "tgrade=III: HR 1.392 (1.142–1.775), p_bootstrap=0.005",
+      "progrec:   HR 0.638 (0.494–0.788), p_bootstrap=0.005 (protective)",
+      "pnodes:    HR 1.306 (1.206–1.563), p_bootstrap=0.005"
+    ],
+    "log_rank_grade": "chi²=21.09, p≈0",
+    "log_rank_hormonal_therapy": "chi²=8.56, p=0.0034"
+  },
+  "limitations": [
+    "GBSG2 is breast cancer, not GEA — pipeline validation only; biological interpretation is dataset-specific",
+    "Bootstrap CIs are approximate; sksurv does not expose per-coefficient SEs",
+    "Full TCGA-STAD pipeline needs GDC API + clinical/mutation/MSI/immune-subtype data acquisition, not run in sandbox",
+    "Synthetic-data generator mirrors TCGA structure but is NOT real patient data",
+    "Streamlit dashboard outputs are not for clinical use — for any deployment, validation on an independent prospective cohort, IRB oversight, and regulatory review would be required"
+  ],
+  "feeds_into": [],
+  "portfolio_position": "Project 6 of 7 — capstone integrating MSI (P1), immune subtype (P2), and SHAP-validated biomarkers (P3, P4) into a survival model",
+  "role": "Pipeline architecture, biological feature selection from thesis, clinical-plausibility review of model outputs. Implementation AI-assisted."
+}
